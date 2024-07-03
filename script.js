@@ -63,9 +63,8 @@ const retailMap = (latlngs)=>{
     // Define buttons and actions
     const buttons = [
         { text: 'Matriz', onClick: () => showHeadquarterForm() },
-        { text: 'Button 2', onClick: () => alert('Button 2 clicked') },
-        { text: 'Button 3', onClick: () => alert('Button 3 clicked') },
-        { text: 'Button 4', onClick: () => alert('Button 4 clicked') }
+        { text: 'Filial', onClick: () => alert('Filial button clicked') },
+        { text: 'Concorrente', onClick: () => alert('Concorrente Button clicked') },
     ];
 
     // Add the custom control to the map
