@@ -68,7 +68,10 @@ const retailMap = (latlngs)=>{
     ];
 
     // Add the custom control to the map
-    retailMap.map.addControl(new CustomControl(buttons, { position: 'topleft' }));
+    retailMap.map.addControl(new SearchBar({ position: 'topleft' }));
+
+    // Add the buttons bar control to the map
+    retailMap.map.addControl(new ButtonsBar(buttons, { position: 'bottomright' }));
 
    
 
