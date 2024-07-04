@@ -147,7 +147,7 @@ class Map {
 
     async getLatLongFromAddress(address) {
        
-        const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&addressdetails=1`;
+        const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&addressdetails=1`;
     
         try {
             const response = await fetch(url);

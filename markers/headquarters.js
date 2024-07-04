@@ -115,7 +115,7 @@ class Headquarter extends Marker {
             latlngs:this.latlng,
         }
         
-        const index = state.headquarters.findIndex(object => object.id === this.id);
+        const index = state.headquarters?.findIndex(object => object.id === this.id);
 
         if (index >= 0){
             
@@ -123,7 +123,7 @@ class Headquarter extends Marker {
             
         }else{
             
-            state.headquarters.push(updatedHeadquarter)
+            state.headquarters?.push(updatedHeadquarter)
         }
         
         localStorage.setItem(this.mapContext.mapId, JSON.stringify(state))

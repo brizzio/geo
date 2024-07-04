@@ -15,6 +15,7 @@ class SearchBar extends L.Control {
         style.innerHTML = `
         .search-bar {
             display: flex;
+            width:80vw;
             align-items: center;
             padding: 10px;
             background-color: rgba(255, 255, 255, 0.4); /* 40% opacity white */
@@ -23,7 +24,7 @@ class SearchBar extends L.Control {
         }
         .search-bar input {
             flex-grow: 1;
-            min-width: 300px;
+            width:100%;
             margin-left: 10px;
             padding: 5px;
             border: 1px solid #ccc;
@@ -75,6 +76,18 @@ class SearchBar extends L.Control {
         .search-bar .ok-button {
             margin: 10px;
             display: block;
+        }
+
+        @media (max-width: 768px) {
+           .search-bar {
+            display: flex;
+            width:300px;
+            align-items: center;
+            padding: 10px;
+            background-color: rgba(255, 255, 255, 0.4); /* 40% opacity white */
+            border-radius: 5px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+        }
         }
     `;
     
@@ -148,8 +161,10 @@ class SearchBar extends L.Control {
     }
 
     async searchNominatim(query, countryCode) {
+        console.log('search query', query)
         const response = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&countrycodes=${countryCode}&format=json&addressdetails=1`);
         const data = await response.json();
+        console.log('search data', data)
         return data;
     }
 
@@ -175,14 +190,7 @@ class SearchBar extends L.Control {
     handleResultClick(result) {
         console.log('Selected location:', result);
         // Create a marker on the map
-        const latlng = [result.lat, result.lon];
-        const marker = L.marker(latlng).addTo(this._map);
-        marker.bindPopup(result.display_name).openPopup();
-
-        // Fly to the marker's location
-        this._map.flyTo(latlng, 14, {
-            duration: 2 // Duration in seconds
-        });
+        new SearchMarker(this._map, result);
     }
 }
 

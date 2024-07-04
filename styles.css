@@ -1,22 +1,10 @@
-.context-menu {
-    position: absolute;
-    display: none;
-    background: white;
-    border: 1px solid #ccc;
-    z-index: 1000;
+#map {
+    height: 100vh;
+    width: 100vw;
 }
 
-.context-menu ul {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-}
-
-.context-menu li {
-    padding: 8px 12px;
-    cursor: pointer;
-}
-
-.context-menu li:hover {
-    background: #eee;
+@media (max-width: 768px) {
+    #map {
+        width: 95vw;
+    }
 }
