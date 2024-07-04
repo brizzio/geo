@@ -5,6 +5,8 @@ class SearchBar extends L.Control {
         this.searchInput = null;
         this.loadingBar = null; // Add a property for the loading bar
         this.countryCode = null; // Property to store the country code
+        this.store = new LocalStorageManager('search',[])
+        
     }
 
     onAdd(map) {
@@ -132,12 +134,16 @@ class SearchBar extends L.Control {
         // Create the results container
         this.resultsContainer = L.DomUtil.create('div', 'results-container', container);
 
+        // Prevent mouse wheel scrolling from propagating to the map
+        L.DomEvent.on(this.resultsContainer, 'mousewheel', L.DomEvent.stopPropagation);
+
         // Fetch the country code when the map is moved
         map.on('moveend', async () => {
             const mapCenter = map.getCenter();
             this.countryCode = await this.getCountryCode(mapCenter.lat, mapCenter.lng);
         });
 
+        
         return container;
     }
 
@@ -201,6 +207,7 @@ class SearchBar extends L.Control {
     }
 
     handleOkClick() {
+        let arr = []
         // Get selected results
         const checkboxes = this.resultsContainer.querySelectorAll('input[type="checkbox"]:checked');
         checkboxes.forEach(checkbox => {
@@ -208,6 +215,7 @@ class SearchBar extends L.Control {
             this.handleResultClick(result);
         });
 
+        //console.log('results', results)
         // Hide the results container and clear the search input
         this.resultsContainer.style.display = 'none';
         this.searchInput.value = ''; // Clear the search input
@@ -215,7 +223,52 @@ class SearchBar extends L.Control {
 
     handleResultClick(result) {
         console.log('Selected location:', result);
+        this.store.addItem(result)
         // Create a marker on the map
         new SearchMarker(this._map, result);
     }
+
+    
 }
+
+const results = [{
+    "place_id": 7145121,
+    "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+    "osm_type": "way",
+    "osm_id": 673095700,
+    "lat": "-23.4811284",
+    "lon": "-47.42060364350246",
+    "class": "shop",
+    "type": "bakery",
+    "place_rank": 30,
+    "importance": 0.0000649080643930269,
+    "addresstype": "shop",
+    "name": "Padaria Real",
+    "display_name": "Padaria Real, 2650, Avenida Engenheiro Carlos Reinaldo Mendes, Jardim Bela Vista, Jardim Jockey Club, Sorocaba, Região Imediata de Sorocaba, Região Metropolitana de Sorocaba, Região Geográfica Intermediária de Sorocaba, São Paulo, Região Sudeste, 18013-280, Brasil",
+    "address": {
+        "shop": "Padaria Real",
+        "house_number": "2650",
+        "road": "Avenida Engenheiro Carlos Reinaldo Mendes",
+        "neighbourhood": "Jardim Bela Vista",
+        "suburb": "Jardim Jockey Club",
+        "city_district": "Sorocaba",
+        "city": "Sorocaba",
+        "municipality": "Região Imediata de Sorocaba",
+        "county": "Região Metropolitana de Sorocaba",
+        "state_district": "Região Geográfica Intermediária de Sorocaba",
+        "state": "São Paulo",
+        "ISO3166-2-lvl4": "BR-SP",
+        "region": "Região Sudeste",
+        "postcode": "18013-280",
+        "country": "Brasil",
+        "country_code": "br"
+    },
+    "boundingbox": [
+        "-23.4813410",
+        "-23.4809142",
+        "-47.4210980",
+        "-47.4201088"
+    ]
+}]
+
+

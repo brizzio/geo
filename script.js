@@ -1,21 +1,19 @@
 
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async() =>{
 
     const geo = new Geo();
-    geo.getCurrentPosition()
-    .then((position) => {
-        console.log('User position:', position);
-        // Use the position as a Leaflet LatLng object
-        // Make mapInstance global
-        retailMap(position);
-        
-    })
-    .catch((error) => {
-        console.error('Error getting position:', error);
-    });
-
-
+    
+    //let position = await geo.getCurrentPosition()
+    
+    //console.log('User position:', position);
+    // Use the position as a Leaflet LatLng object
+    // Make mapInstance global
+    let map = retailMap();
+    console.log('map', map);
+    window.MAP = map
+    //window.mk = tester(map)
+    //tester(map)
 
 
 
@@ -83,55 +81,23 @@ const retailMap = (latlngs)=>{
 
     
 
-    console.log(Models.address)
+    //console.log(Models.address)
+
+    // Listen for the layeradd event
+    retailMap.map.on('layeradd', (e)=>Map.onlayerAdd(retailMap.map, e));
+   
+    
+
    
 
-    window.mapInstance = retailMap
+    return retailMap
 
 }
 
 
 
 
-const o = {
-    "place_id": 7145121,
-    "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
-    "osm_type": "way",
-    "osm_id": 673095700,
-    "lat": "-23.4811284",
-    "lon": "-47.42060364350246",
-    "class": "shop",
-    "type": "bakery",
-    "place_rank": 30,
-    "importance": 0.0000649080643930269,
-    "addresstype": "shop",
-    "name": "Padaria Real",
-    "display_name": "Padaria Real, 2650, Avenida Engenheiro Carlos Reinaldo Mendes, Jardim Bela Vista, Jardim Jockey Club, Sorocaba, Região Imediata de Sorocaba, Região Metropolitana de Sorocaba, Região Geográfica Intermediária de Sorocaba, São Paulo, Região Sudeste, 18013-280, Brasil",
-    "address": {
-        "shop": "Padaria Real",
-        "house_number": "2650",
-        "road": "Avenida Engenheiro Carlos Reinaldo Mendes",
-        "neighbourhood": "Jardim Bela Vista",
-        "suburb": "Jardim Jockey Club",
-        "city_district": "Sorocaba",
-        "city": "Sorocaba",
-        "municipality": "Região Imediata de Sorocaba",
-        "county": "Região Metropolitana de Sorocaba",
-        "state_district": "Região Geográfica Intermediária de Sorocaba",
-        "state": "São Paulo",
-        "ISO3166-2-lvl4": "BR-SP",
-        "region": "Região Sudeste",
-        "postcode": "18013-280",
-        "country": "Brasil",
-        "country_code": "br"
-    },
-    "boundingbox": [
-        "-23.4813410",
-        "-23.4809142",
-        "-47.4210980",
-        "-47.4201088"
-    ]
-}
+
 
 
 
@@ -201,5 +167,9 @@ function flattenObject(obj, parent = '', res = {}) {
         }
     }
     return res;
+}
+
+function tester(map){
+    return new SearchMarker(map, results[0]);
 }
 

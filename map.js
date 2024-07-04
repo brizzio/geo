@@ -1,7 +1,7 @@
 class Map {
      constructor(mapId, latlngs, state = {}) {
         this.mapId = mapId;
-        this.latlngs = latlngs || [51.505, -0.09]
+        this.latlngs = latlngs || [-23.5676567, -46.6505462]
         //this.zoom = zoom || 10
         this.selectedMarker = null;
         this.selectedPolygon = null;
@@ -21,8 +21,7 @@ class Map {
         }).addTo(this.map);
 
         // Listen for the layeradd event
-        // Listen for the layeradd event
-        this.map.on('layeradd', (e)=>this.onlayerAdd(e));
+        
 
         this.contextMenu = new ContextMenu([
             { id: 'add-marker', text: 'Add Marker', onClick: this.addMarker.bind(this) },
@@ -61,10 +60,10 @@ class Map {
     }
 
 
-    onlayerAdd(event) {
-        console.log('Layer added:', event.layer);
+    static onlayerAdd(map, event) {
+        console.log('Layer added:', map ,event.layer);
         // Additional logic when a layer is added
-        console.log('Layers:', getAllLayers(this.map));
+        console.log('Layers:', getAllLayers(map));
     }
 
    
