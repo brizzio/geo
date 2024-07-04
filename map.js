@@ -20,6 +20,10 @@ class Map {
             attribution: '© Fabrizio Salvade'
         }).addTo(this.map);
 
+        // Listen for the layeradd event
+        // Listen for the layeradd event
+        this.map.on('layeradd', (e)=>this.onlayerAdd(e));
+
         this.contextMenu = new ContextMenu([
             { id: 'add-marker', text: 'Add Marker', onClick: this.addMarker.bind(this) },
             { id: 'add-area', text: 'Add Area', onClick: this.startDrawingArea.bind(this) },        
@@ -50,9 +54,22 @@ class Map {
         this.map.on(L.Draw.Event.CREATED, (event) => this.addArea(event));
         this.map.on(L.Draw.Event.EDITED, () => console.log('edited fired'));
 
+        
+
         // Restore map state
         this.update();
     }
+
+
+    onlayerAdd(event) {
+        console.log('Layer added:', event.layer);
+        // Additional logic when a layer is added
+        console.log('Layers:', getAllLayers(this.map));
+    }
+
+   
+
+    
 
     update() {
         
@@ -313,7 +330,6 @@ class Map {
                 this.map.removeLayer(layer);
             }
         });
-        
     }
 
     /* draw() {
@@ -349,4 +365,12 @@ class Map {
     
 
     
+}
+
+function getAllLayers(map) {
+    let layers = [];
+    map.eachLayer(function(layer) {
+        layers.push(layer);
+    });
+    return layers;
 }

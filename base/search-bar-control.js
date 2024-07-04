@@ -3,6 +3,7 @@ class SearchBar extends L.Control {
         super(options);
         this.resultsContainer = null;
         this.searchInput = null;
+        this.loadingBar = null; // Add a property for the loading bar
         this.countryCode = null; // Property to store the country code
     }
 
@@ -11,12 +12,12 @@ class SearchBar extends L.Control {
 
         // Inject styles directly into the control
         const style = document.createElement('style');
-        style.id='search-bar-styles'
+        style.id = 'search-bar-styles';
         style.innerHTML = `
         .search-bar {
             display: flex;
-            width:80vw;
-            align-items: center;
+            flex-direction: column; /* Align items in column */
+            width: 90vw;
             padding: 10px;
             background-color: rgba(255, 255, 255, 0.4); /* 40% opacity white */
             border-radius: 5px;
@@ -24,11 +25,36 @@ class SearchBar extends L.Control {
         }
         .search-bar input {
             flex-grow: 1;
-            width:100%;
+            
             margin-left: 10px;
             padding: 5px;
             border: 1px solid #ccc;
             border-radius: 3px;
+            margin-bottom: 10px; /* Space between input and loading bar */
+        }
+        .search-bar .loading-bar {
+            width: 100%;
+            height: 4px;
+            background-color: #ccc;
+            overflow: hidden;
+            position: relative;
+            display: none;
+        }
+        .search-bar .loading-bar::before {
+            content: '';
+            display: block;
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background-color: #444;
+            animation: loading 1.5s infinite;
+        }
+        @keyframes loading {
+            0% { left: -100%; width: 100%; }
+            50% { left: 0; width: 100%; }
+            100% { left: 100%; width: 10%; }
         }
         .search-bar .results-container {
             position: absolute;
@@ -77,17 +103,10 @@ class SearchBar extends L.Control {
             margin: 10px;
             display: block;
         }
-
         @media (max-width: 768px) {
-           .search-bar {
-            display: flex;
-            width:300px;
-            align-items: center;
-            padding: 10px;
-            background-color: rgba(255, 255, 255, 0.4); /* 40% opacity white */
-            border-radius: 5px;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
-        }
+            .search-bar {
+                width: 300px;
+            }
         }
     `;
     
@@ -96,7 +115,6 @@ class SearchBar extends L.Control {
         // Prevent clicks on the control from propagating to the map
         L.DomEvent.disableClickPropagation(container);
 
-        
         // Create the search bar
         this.searchInput = L.DomUtil.create('input', '', container);
         this.searchInput.type = 'text';
@@ -107,6 +125,9 @@ class SearchBar extends L.Control {
                 this.performSearch(this.searchInput.value);
             }
         });
+
+        // Create the loading bar
+        this.loadingBar = L.DomUtil.create('div', 'loading-bar', container);
 
         // Create the results container
         this.resultsContainer = L.DomUtil.create('div', 'results-container', container);
@@ -123,14 +144,19 @@ class SearchBar extends L.Control {
     async performSearch(query) {
         // Clear previous results
         this.resultsContainer.innerHTML = '';
+        this.loadingBar.style.display = 'block'; // Show the loading bar
 
         if (!query) {
             this.resultsContainer.style.display = 'none';
+            this.loadingBar.style.display = 'none'; // Hide the loading bar
             return;
         }
 
         // Perform the search using Nominatim API with the country code constraint
         const results = await this.searchNominatim(query, this.countryCode);
+
+        // Hide the loading bar after getting the results
+        this.loadingBar.style.display = 'none';
 
         // Display the results
         results.forEach(result => {
@@ -161,10 +187,10 @@ class SearchBar extends L.Control {
     }
 
     async searchNominatim(query, countryCode) {
-        console.log('search query', query)
+        console.log('search query', query);
         const response = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&countrycodes=${countryCode}&format=json&addressdetails=1`);
         const data = await response.json();
-        console.log('search data', data)
+        console.log('search data', data);
         return data;
     }
 
@@ -193,4 +219,3 @@ class SearchBar extends L.Control {
         new SearchMarker(this._map, result);
     }
 }
-

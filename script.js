@@ -15,12 +15,18 @@ document.addEventListener('DOMContentLoaded', function() {
         console.error('Error getting position:', error);
     });
 
+
+
+
+
 });
 
 
 const retailMap = (latlngs)=>{
 
     const retailMap = new Map('retailMap', latlngs)
+
+    
 
     // Function to show the headquarter form
    const showHeadquarterForm = () => {
@@ -75,7 +81,7 @@ const retailMap = (latlngs)=>{
     // Add the buttons bar control to the map
     retailMap.map.addControl(new ButtonsBar(buttons, { position: 'bottomright' }));
 
-    new SearchMarker(retailMap.map, o)
+    
 
     console.log(Models.address)
    
@@ -83,6 +89,7 @@ const retailMap = (latlngs)=>{
     window.mapInstance = retailMap
 
 }
+
 
 
 

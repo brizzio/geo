@@ -62,6 +62,8 @@ class Models{
     
 }
 
+
+
 async function translateLabel(text, targetLanguage) {
     const url = 'https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=' + targetLanguage + '&dt=t&q=' + encodeURI(text);
     try {
