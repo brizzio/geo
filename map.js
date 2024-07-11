@@ -9,7 +9,9 @@ class Map {
         this.areas = [];
         this.selectedItems = [];
         this.contextMenuLatLng = null;
-        this.state = state
+        
+        this.dao = new MapTree(this.mapId)
+        this.state = this.dao.tree
 
         this.map = L.map('map', {
             zoomControl: false // Disable the default zoom control
@@ -21,7 +23,8 @@ class Map {
         }).addTo(this.map);
 
         // Listen for the layeradd event
-        
+        // Listen for the layeradd event
+        //this.map.on('layeradd', (e)=>console.log(e));
 
         this.contextMenu = new ContextMenu([
             { id: 'add-marker', text: 'Add Marker', onClick: this.addMarker.bind(this) },
@@ -53,26 +56,77 @@ class Map {
         this.map.on(L.Draw.Event.CREATED, (event) => this.addArea(event));
         this.map.on(L.Draw.Event.EDITED, () => console.log('edited fired'));
 
+        // Define buttons and actions
+        const buttons = [
+            { text: '+ Matriz', onClick: () => this.showHeadquarterForm() },
+            { text: '+ Bandeira', onClick: () => this.showBannerForm() },
+            { text: '+ Filial', onClick: () => alert('Filial button clicked') },
+            { text: '+ Concorrente', onClick: () => alert('Concorrente Button clicked') },
+        ];
+
+        // Add the custom control to the map
+       this.map.addControl(new SearchBar(this, { position: 'topleft' }));
+
+        // Add the buttons bar control to the map
+        this.map.addControl(new ButtonsBar(buttons, { position: 'bottomright' }));
+
         
 
         // Restore map state
         this.update();
+
+
     }
 
 
-    static onlayerAdd(map, event) {
+   /*  static onlayerAdd(map, event) {
         console.log('Layer added:', map ,event.layer);
         // Additional logic when a layer is added
         console.log('Layers:', getAllLayers(map));
-    }
+    } */
 
    
 
     
 
     update() {
+        this.clearMap()
+        let storedSearchItems = new SearchItems().data
+        let tree = this.state
+
+        //console.log(storedSearchItems)
+        if(storedSearchItems){
+            storedSearchItems.forEach(item=> {
+                //console.log('item:', item)
+                let mk = new SearchMarker(this, item,{ draggable:true })
+                //console.log('mk:', mk)
+                //this.map.addLayer(mk.marker)
+            })
+        }
+
+        console.log('no update tree' , tree)
+
+        if(!tree) return;
         
-        const savedMapState = JSON.parse(localStorage.getItem(this.mapId));
+            tree.headquarters && tree.headquarters.forEach(headquarter=> {
+                console.log('headquarter company:', headquarter.company)
+                let latlng = headquarter.company.geo.latlng
+                let hq = new Headquarter(this, latlng, headquarter.company)
+                //restore headquarter branches if any
+                let branches = headquarter.branches
+                if(branches.length){
+                    branches.forEach(branch=>{
+                        console.log('restoring branch:', branch)
+                        let b = BranchMarker.restore(this, branch)
+                    })
+                }
+                //console.log('mk:', mk)
+                //this.map.addLayer(mk.marker)
+            })
+        
+
+       /*  const savedMapState = JSON.parse(localStorage.getItem(this.mapId));
+
         if (savedMapState) {
             this.clearMap()
             if (savedMapState.headquarters) {
@@ -96,7 +150,8 @@ class Map {
                 }); 
             } */
         
-        } 
+        //}  
+        //*/
     }
 
     showContextMenu(event) {
@@ -106,6 +161,55 @@ class Map {
         let top = `${event.containerPoint.y}px`;
         this.contextMenu.createContextMenu(top, left);
     }
+
+
+    showHeadquarterForm = () => {
+        console.log('Button clicked');
+        const inputs = [
+            { field: 'name', label: 'Nome', placeholder: 'Nome Fantasia' },
+            { field: 'banner', label: 'Bandeira', placeholder: 'Nome Fachada' },
+            { field: 'street', label: 'Logradouro', placeholder: 'Nome da rua / av' },
+            { field: 'number', label: 'Numero', placeholder: 'Numero do endereço' },
+            { field: 'number-complement', label: 'Complemento', placeholder: 'Ex.: Casa 3' },
+            { field: 'city', label: 'Cidade', placeholder: 'nome da cidade' },
+            { field: 'state', label: 'UF', placeholder: 'sigla da UF' }
+        ];
+        
+        const onSave = (formData) => {
+            console.log('Form Data:', formData);
+            
+            this.addHeadquarter(formData);
+        };
+
+        const onCancel = () => {
+            console.log('Form cancelled');
+        };
+        const form = new DynamicForm(onSave, onCancel);
+        form.show(inputs);
+        console.log('Form rendered');
+    }; 
+
+
+    showBannerForm = () => {
+        console.log('Add Banner Button clicked');
+        const banner = new BannerModel()
+        
+        const inputs = banner.formInputs
+        
+        const onSave = (formData) => {
+            console.log('Form Data:', formData);
+            let newBanner = banner.createFromFormData(formData)
+            console.log('banner instance',newBanner.data);
+            this.dao.addBanner(newBanner.data)
+        };
+
+        const onCancel = () => {
+            console.log('Form cancelled');
+        };
+        const form = new DynamicForm(onSave, onCancel);
+        form.show(inputs);
+        console.log('Form rendered');
+    }; 
 
     /* addMarker() {
     

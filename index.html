@@ -12,15 +12,24 @@
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
 </head>
 <body>
-    <div id="map"></div>
-
-   
+    <main>
+        <div id="map"></div>
+        <!-- <div id="display">content</div> -->
+    </main>
+    
 
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet-draw/dist/leaflet.draw.js"></script>
 
+    <script src="constants/line-of-business-industries.js"></script>
+    <script src="constants/store-types.js"></script>
+    <script src="constants/company-types.js"></script>
+
+    <script src="icons/icon.js"></script> 
+    <script src="icons/search-mark-icon.js"></script> 
+    
     <script src="local-storage-manager.js"></script>
-    <script src="DAOs/data-structure.js"></script>
+   
     <script src="polygon.js"></script>
     <script src="editForm.js"></script>
     <script src="context-menu.js"></script>
@@ -28,11 +37,15 @@
     <script src="base/search-bar-control.js"></script> 
     <script src="base/buttons-bar-control.js"></script> 
     <script src="forms/dynamic-form.js"></script> 
-    <script src="icons/icon.js"></script> 
+    <script src="forms/popup-dynamic-form.js"></script> 
+    <script src="forms/option-form.js"></script> 
+    
     <script src="markers/marker.js"></script> 
     <script src="markers/headquarters.js"></script> 
+    <script src="markers/branch-marker.js"></script> 
     <script src="markers/storeMarker.js"></script>
     <script src="markers/search-bar-marker.js"></script>
+    <script src="DAOs/data-structure.js"></script>
     <script src="map.js"></script>
     <script src="script.js"></script>
 </body>

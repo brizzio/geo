@@ -2,11 +2,7 @@ class Headquarter extends Marker {
     constructor(
         mapContext, 
         latlng,
-        id,
-        company_name,
-        company_address,
-        company_type,
-        boundingBox, 
+        data 
     ) {
 
         // Ensure to call the parent constructor first
@@ -14,12 +10,9 @@ class Headquarter extends Marker {
         
         // Initialize specific properties for Headquarter
         this.type = 'headquarter';
-        
-        this.id = id || new Date().valueOf(),
-        this.company_name= company_name || 'Matriz';
-        this.company_address= company_address || ''
-        this.company_type= company_type || "company",
-        this.boundingBox= boundingBox || null
+        this.info = data || {}
+
+        this.boundingBox= this.#getBoundingBox(latlng, 80)
 
         
         
@@ -31,7 +24,7 @@ class Headquarter extends Marker {
             { id: 'add-concurrent', text: 'Inserir Concorrente', onClick: this.addConcurrent.bind(this) }
         ]); 
 
-        this.icon = new Icon(this.company_name, 'https://maps.google.com/mapfiles/ms/icons/pink-dot.png');
+        this.icon = new Icon(this.info.company_name, 'https://maps.google.com/mapfiles/ms/icons/pink-dot.png');
        
         this.options = {
             icon: this.icon.element
@@ -78,6 +71,21 @@ class Headquarter extends Marker {
 
     }
 
+    static initFromSearchMarker(mapContext, latlngs, info){
+        
+        console.log('init headquarter from search result',  info)
+        
+        let h =  new Headquarter(
+            mapContext, 
+            latlngs, 
+            info
+        )
+
+        mapContext.state.addHeadquarter(info)
+        return h
+
+    }
+
     static restore(map, data){
         console.log('restore headquarter', data)
         return new Headquarter(map, data.latlng, data)
@@ -94,10 +102,7 @@ class Headquarter extends Marker {
     objectify(){
         console.log('objectify headquarter')
         return {
-            id:this.id,  
-            company_name:this.company_name, 
-            company_address:this.company_address,
-            company_type:this.company_type,
+            ...this.info
         }
     }
 
@@ -142,6 +147,7 @@ class Headquarter extends Marker {
         console.log('Add branch clicked');
         //this.showEditForm(); // Show the edit form when edit-marker is clicked
         // Remove menu
+       
         this.contextMenu.removeContextMenu();
      }
 
@@ -190,6 +196,23 @@ class Headquarter extends Marker {
         let data = Object.keys(this.info).map(tag => `<strong>${tag}:</strong> ${this.info[tag]}`).join('<br>');
         return header + data
     } */
+
+    #getBoundingBox(latlon, distance) {
+
+            const lat = latlon[0]
+            const lon = latlon[1]
+            const earthRadius = 6378.1; // Radius of the Earth in kilometers
+        
+            const latChange = distance / earthRadius;
+            const lonChange = distance / (earthRadius * Math.cos(Math.PI * lat / 180));
+        
+            const minLat = lat - latChange * 180 / Math.PI;
+            const maxLat = lat + latChange * 180 / Math.PI;
+            const minLon = lon - lonChange * 180 / Math.PI;
+            const maxLon = lon + lonChange * 180 / Math.PI;
+        
+            return [minLat, minLon, maxLat, maxLon];
+        }
 
       
 }

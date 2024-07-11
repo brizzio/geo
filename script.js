@@ -9,8 +9,30 @@ document.addEventListener('DOMContentLoaded', async() =>{
     //console.log('User position:', position);
     // Use the position as a Leaflet LatLng object
     // Make mapInstance global
-    let map = retailMap();
+
+    let map = retailMap([-23.5676567, -46.6505462]);
+
+
     console.log('map', map);
+
+    //reverse(-23.5575585,-46.6456233).then(r=>console.log('reverse',r))
+
+   /*  let data = []
+    console.log('elements',res.elements)
+    let elements = res.elements
+
+    for(let e in elements){
+        let element = elements[e]
+        //console.log('input', element)
+        //let si = new SearchItemModel(element)
+        //console.log('output', si)
+        //data.push(si)
+        //new SearchMarker(map.map,si)
+        //searchStore.addItem(si)
+    }
+
+    console.log(data) */
+        
     window.MAP = map
     //window.mk = tester(map)
     //tester(map)
@@ -20,72 +42,17 @@ document.addEventListener('DOMContentLoaded', async() =>{
 });
 
 
+async function reverse(lat, lon) {
+    const response = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&addressdetails=1`);
+    const data = await response.json();
+    return data
+}
+
+
 const retailMap = (latlngs)=>{
 
     const retailMap = new Map('retailMap', latlngs)
 
-    
-
-    // Function to show the headquarter form
-   const showHeadquarterForm = () => {
-        console.log('Button clicked');
-        const inputs = [
-            { field: 'name', label: 'Nome', placeholder: 'Nome Fantasia' },
-            { field: 'banner', label: 'Bandeira', placeholder: 'Nome Fachada' },
-            { field: 'street', label: 'Logradouro', placeholder: 'Nome da rua / av' },
-            { field: 'number', label: 'Numero', placeholder: 'Numero do endereço' },
-            { field: 'number-complement', label: 'Complemento', placeholder: 'Ex.: Casa 3' },
-            { field: 'city', label: 'Cidade', placeholder: 'nome da cidade' },
-            { field: 'state', label: 'UF', placeholder: 'sigla da UF' }
-        ];
-        
-        const onSave = (formData) => {
-            console.log('Form Data:', formData);
-            
-            retailMap.addHeadquarter(formData);
-        };
-
-        const onCancel = () => {
-            console.log('Form cancelled');
-        };
-        const form = new DynamicForm(onSave, onCancel);
-        form.show(inputs);
-        console.log('Form rendered');
-    }; 
-
-    function showEditForm() {
-        const editForm = new EditForm(
-            (name) => {
-                this.updateName(name);
-            },
-            () => {
-                console.log('Edit form canceled');
-            }
-        );
-
-        editForm.show('teste');
-    }
-
-    // Define buttons and actions
-    const buttons = [
-        { text: 'Matriz', onClick: () => showHeadquarterForm() },
-        { text: 'Filial', onClick: () => alert('Filial button clicked') },
-        { text: 'Concorrente', onClick: () => alert('Concorrente Button clicked') },
-    ];
-
-    // Add the custom control to the map
-    retailMap.map.addControl(new SearchBar({ position: 'topleft' }));
-
-    // Add the buttons bar control to the map
-    retailMap.map.addControl(new ButtonsBar(buttons, { position: 'bottomright' }));
-
-    
-
-    //console.log(Models.address)
-
-    // Listen for the layeradd event
-    retailMap.map.on('layeradd', (e)=>Map.onlayerAdd(retailMap.map, e));
-   
     
 
    

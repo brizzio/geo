@@ -182,11 +182,32 @@ class Polygon {
                 relation["shop"](${minLat},${minLng},${maxLat},${maxLng});
             );
             out center;
+        `; 
+
+        /* const overpassQuery = `
+            [out:json][timeout:25];
+            (
+                node["shop"](${minLat},${minLng},${maxLat},${maxLng});
+                way["shop"](${minLat},${minLng},${maxLat},${maxLng});
+                relation["shop"](${minLat},${minLng},${maxLat},${maxLng});
+            );
+            out center;
+            (
+                node["shop"](if: t["addr:street"] || t["addr:housenumber"] || t["addr:city"] || t["addr:postcode"] || t["addr:country"]);
+                way["shop"](if: t["addr:street"] || t["addr:housenumber"] || t["addr:city"] || t["addr:postcode"] || t["addr:country"]);
+                relation["shop"](if: t["addr:street"] || t["addr:housenumber"] || t["addr:city"] || t["addr:postcode"] || t["addr:country"]);
+            );
+            out body;
+            >;
+            out skel qt;
         `;
+ */
 
        
         const overpassUrl = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(overpassQuery)}`;
 
+        console.log('overpass query', overpassQuery)
+        console.log('overpass overpassUrl', overpassUrl)
         fetch(overpassUrl)
             .then(response => response.json())
             .then(data => {
@@ -194,35 +215,12 @@ class Polygon {
                 this.stores = [];
 
                 // Process Overpass API response to create MarkerWithContextMenu instances for each store
-                data.elements.forEach(element => {
-                    if (element.type === 'node' || element.type === 'way' || element.type === 'relation') {
-
-                        let lat, lng;
-                        if (element.type === 'node') {
-                            lat = element.lat;
-                            lng = element.lon;
-                        } else if (element.type === 'way' || element.type === 'relation') {
-                            lat = element.center.lat;
-                            lng = element.center.lon;
-                        }
-
-                       
-                        const latlng = L.latLng(lat, lng);
-                        let id = generateUniqueId()
-                        let info = element.tags 
-                        let type = info.shop?info.shop:'search-result'
-                        let searchItemData = {
-                            latlng, 
-                            id,
-                            name:'',
-                            info, 
-                            options:{}, 
-                            type
-                        }
-                        console.log('element info', info)
-                        let store = StoreMarker.init(this.mapContext, searchItemData);
-                        this.stores.push(store);
-                    }
+                data.elements.forEach(async element => {
+                    let searchItemData = SearchResultModel.parseFromOverpassSearchObject(element)
+                        console.log('element info', element)
+                        console.log('searchItemData', searchItemData)
+                        new SearchMarker(this.mapContext, searchItemData);
+                        new SearchItems().add(searchItemData)
                 });
 
                 console.log('search', this.stores)
@@ -233,7 +231,7 @@ class Polygon {
             })
             .catch(error => {
                 console.error('Error searching stores:', error);
-            });
+            }); 
     }
 
    

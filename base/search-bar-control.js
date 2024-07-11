@@ -1,11 +1,12 @@
 class SearchBar extends L.Control {
-    constructor(options = {}) {
+    constructor(mapContext, options = {}) {
         super(options);
+        this.mapContext = mapContext;
         this.resultsContainer = null;
         this.searchInput = null;
         this.loadingBar = null; // Add a property for the loading bar
         this.countryCode = null; // Property to store the country code
-        this.store = new LocalStorageManager('search',[])
+       
         
     }
 
@@ -140,7 +141,7 @@ class SearchBar extends L.Control {
         // Fetch the country code when the map is moved
         map.on('moveend', async () => {
             const mapCenter = map.getCenter();
-            this.countryCode = await this.getCountryCode(mapCenter.lat, mapCenter.lng);
+            //this.countryCode = await this.getCountryCode(mapCenter.lat, mapCenter.lng);
         });
 
         
@@ -200,11 +201,11 @@ class SearchBar extends L.Control {
         return data;
     }
 
-    async getCountryCode(lat, lon) {
+   /*  async getCountryCode(lat, lon) {
         const response = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&addressdetails=1`);
         const data = await response.json();
         return data.address.country_code.toUpperCase();
-    }
+    } */
 
     handleOkClick() {
         let arr = []
@@ -223,9 +224,10 @@ class SearchBar extends L.Control {
 
     handleResultClick(result) {
         console.log('Selected location:', result);
-        this.store.addItem(result)
+        let parsed = SearchResultModel.parseFromNominatimSearchObject(result)
         // Create a marker on the map
-        new SearchMarker(this._map, result);
+        new SearchMarker(this.mapContext, parsed);
+        new SearchItems().add(parsed)
     }
 
     

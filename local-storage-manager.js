@@ -1,5 +1,5 @@
 class LocalStorageManager {
-    constructor(storageKey, initialValue = {}) {
+    constructor(storageKey, initialValue = null) {
         this.storageKey = storageKey;
         this.initialValue = initialValue;
         /* // Initialize storage if it doesn't exist
@@ -16,7 +16,7 @@ class LocalStorageManager {
 
     // Helper method to set the stored data
     setStoredData(data) {
-        console.log('setStoreData', this.storageKey, data)
+       // console.log('setStoreData', this.storageKey, data)
         localStorage.setItem(this.storageKey, JSON.stringify(data));
     }
 
@@ -38,9 +38,9 @@ class LocalStorageManager {
 
     // Add a new item to local storage
     addItem(newItem) {
-        console.log('addItem', this.storageKey, newItem)
+        //console.log('addItem', this.storageKey, newItem)
         let data = this.getStoredData();
-        console.log('addItem data', data)
+        //console.log('addItem data', data)
         if (Array.isArray(data)) {
             data.push(newItem);
         } else if (data && typeof data === 'object') {
@@ -72,6 +72,31 @@ class LocalStorageManager {
         this.setStoredData(data);
     }
 
+    // Update an existing item in local storage
+    updateItemProperty(searchKey, lookupValue, updateKey, updateValue) {
+        let data = this.getStoredData();
+        const index = data.findIndex(item => item[searchKey] === lookupValue);
+        if (index !== -1) {
+            data[index] = { ...data[index], [updateKey]:updateValue };
+        } else {
+            console.error(`Item with ${searchKey}= ${lookupValue}not found.`);
+        }
+        
+        this.setStoredData(data);
+    }
+
+
+    find(key, value) {
+        let data = this.getStoredData();
+        const index = data.findIndex(item => item[key] === value);
+            if (index !== -1) {
+                return index
+            } else {
+                return null
+            }
+        
+    }
+
     // Delete an item from local storage
     deleteItem(id) {
         let data = this.getStoredData();
@@ -83,37 +108,34 @@ class LocalStorageManager {
         this.setStoredData(data);
     }
 
+    // Delete an item from local storage
+    deleteObjectFromArray(onKey, atValue) {
+        console.log('deleteObjectFromArray', onKey, atValue)
+        let data = this.getStoredData();
+        if (Array.isArray(data)) {
+            data = data.filter(item => item[onKey] !== atValue);
+        }
+        this.setStoredData(data);
+    }
+
+    // Delete an item from an array by indexlocal storage
+    removeByIndex(index) {
+        let storage = this.getStoredData();
+        
+        if (Array.isArray(storage)) {
+            if (index >= 0 && index < storage.length) {
+                storage.splice(index, 1);
+            }
+        }
+
+        this.setStoredData(storage);
+    }
+
+
     // Clear all items from local storage
     clearAllItems() {
         localStorage.removeItem(this.storageKey);
     }
 }
 
-/* // Example usage:
-const arrayStorage = new LocalStorageManager('arrayStorageKey', []);
-const objectStorage = new LocalStorageManager('objectStorageKey', {});
 
-// Testing with an array of objects
-console.log('Testing with an array of objects:');
-arrayStorage.clearAllItems();
-arrayStorage.addItem({ id: '1', name: 'Item 1' });
-arrayStorage.addItem({ id: '2', name: 'Item 2' });
-console.log('All items:', arrayStorage.getAllItems());
-console.log('Get item 1:', arrayStorage.getItem('1'));
-arrayStorage.updateItem('1', { name: 'Updated Item 1', description: 'New Description' });
-console.log('All items after update:', arrayStorage.getAllItems());
-arrayStorage.deleteItem('2');
-console.log('All items after delete:', arrayStorage.getAllItems());
-
-// Testing with an object
-console.log('\nTesting with an object:');
-objectStorage.clearAllItems();
-objectStorage.setStoredData({}); // Initialize as an object
-objectStorage.addItem({ key: '1', value: 'Item 1' });
-objectStorage.addItem({ key: '2', value: 'Item 2' });
-console.log('All items:', objectStorage.getAllItems());
-console.log('Get item 1:', objectStorage.getItem('1'));
-objectStorage.updateItem('1', { value: 'Updated Item 1' });
-console.log('All items after update:', objectStorage.getAllItems());
-objectStorage.deleteItem('2');
-console.log('All items after delete:', objectStorage.getAllItems()); */
