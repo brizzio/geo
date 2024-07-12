@@ -12,6 +12,10 @@ document.addEventListener('DOMContentLoaded', async() =>{
 
     let map = retailMap([-23.5676567, -46.6505462]);
 
+    // Create an instance of the ImageEditor class to initialize the form
+
+    //const imageEditor = new ImageEditor();
+    
 
     console.log('map', map);
 

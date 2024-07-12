@@ -75,8 +75,22 @@ Degrees per meter: Calculations for latitude and longitude degrees per meter acc
 Bounding box calculation: The bounding box is calculated by subtracting and adding the half distance (in degrees) from the center coordinates.
 This method provides a rectangular bounding box with a 20-meter side length around the specified center coordinates.
 
+----------------------------------------------------------------------------------------
+Step 1: Include Cropper.js
+Add the following lines to your HTML to include the Cropper.js library and its CSS:
 
-
+html
+Copiar código
+<head>
+    ...
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.12/cropper.min.css" />
+    ...
+</head>
+<body>
+    ...
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.12/cropper.min.js"></script>
+    ...
+</body>
 
 
 

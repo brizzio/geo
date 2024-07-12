@@ -3,16 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Leaflet Map with Context Menus</title>
+    <title>Inteligencia de Preços</title>
     <link rel="stylesheet" href="styles.css" />
     <!-- <link rel="stylesheet" href="https://unpkg.com/tailwindcss@2.2.19/dist/tailwind.min.css" /> -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet-draw/dist/leaflet.draw.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.12/cropper.min.css" />
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.12/cropper.min.js"></script>
+
+    <link rel="icon" href="favicon.ico" type="icons/favicon.ico">
 </head>
 <body>
+    <image-editor/>
     <main>
+        
         <div id="map"></div>
         <!-- <div id="display">content</div> -->
     </main>
@@ -20,6 +26,9 @@
 
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet-draw/dist/leaflet.draw.js"></script>
+    
+    <!-- <script src="utils/image-editor.js"></script> -->
+    <script src="web-components/wc-image-editor.js" defer></script>
 
     <script src="constants/line-of-business-industries.js"></script>
     <script src="constants/store-types.js"></script>
