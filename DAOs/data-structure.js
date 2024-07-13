@@ -376,6 +376,45 @@ class BannerModel {
   
 }
 
+class LanguageModel {
+  constructor(lang = 'pt-BR') {
+    this._languages = ['pt-BR', 'en-US', 'es-ES'];
+    this._language = lang;
+  }
+
+  get language() {
+    return this._language;
+  }
+
+  set language(lang) {
+    this._language = lang;
+  }
+
+  get languageDropdown() {
+   
+    const select = document.createElement('select');
+
+    this._languages.forEach(language => {
+      const option = document.createElement('option');
+      option.value = language;
+      option.textContent = language;
+      if (language === this.language) {
+        option.selected = true;
+      }
+      select.appendChild(option);
+    });
+
+    // Optional: Add event listener to update the language when the selection changes
+    select.addEventListener('change', (event) => {
+      this.language = event.target.value;
+      console.log('language', this.language)
+    });
+
+    return select;
+  }
+}
+
+
 
 
 
@@ -385,7 +424,7 @@ class BannerModel {
 class CompanyModel {
     constructor(data = {}) {
        
-        this.category='null'
+        this.category=null
         this.id= null,
         this.parent_id = null,
         this.name= null,
@@ -412,8 +451,14 @@ class CompanyModel {
       return getOptionsListFromConstant(industries, 'pt-BR')
     }
 
-      get data(){
-        return Object.assign({}, this)
+    get data(){
+      let obj = Object.assign({},this)
+      for (const key in obj) {
+        if (key.startsWith('_')) {
+          delete obj[key];
+        }
+      }
+      return obj;
     }
 
     get formInputs(){
@@ -421,8 +466,8 @@ class CompanyModel {
       
     }
 
-    static get formData(){
-        return Object.assign({}, new CompanyModel().data)
+    get formData(){
+        return Object.assign({}, this.data)
     }
 
     static parseFromSearchItemData(data){
@@ -448,11 +493,178 @@ class CompanyModel {
     
 }
 
+class FormElement {
+
+  groupContainer(){
+    const div = document.createElement('div');
+    div.style.cssText = `
+      padding: 5px;
+      margin-top: 10px;
+      border-top: 1px solid black;
+      border-bottom: 1px solid black;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+      padding-top:15px; 
+      padding-bottom:15px; 
+    `;    
+    return div
+  }
+  dropdown(options, selectedValue, onChange) {
+    const select = document.createElement('select');
+    //console.log('Dropdown options:', options);
+    //console.log('Selected value:', selectedValue);
+
+    options.forEach(option => {
+      const optionElement = document.createElement('option');
+      optionElement.value = option.id;
+      optionElement.textContent = option.label;
+      if (option.value === selectedValue) {
+        optionElement.selected = true;
+      }
+      //console.log('Creating option element:', optionElement);
+      select.appendChild(optionElement);
+    });
+
+    select.addEventListener('change', (event) => {
+      console.log('Event target:', event.target);
+      console.log('Event target value:', event.target.value);
+      onChange(event);
+    });
+
+    return select;
+  }
+
+  
+
+}
+
+class FORM {
+  constructor() {
+    this._overlay = this.overlay();
+    this._formContainer = this.formContainer();
+    this._cancelButton = this.cancelButtonElement();
+    this._title = null; // Initialize title property
+  }
+
+  get title() {
+    return this._title;
+  }
+
+  set title(t) {
+    this._title = t;
+  }
+
+  overlay() {
+    const div = document.createElement('div');
+    div.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+      overflow: hidden;
+    `;
+    return div;
+  }
+
+  formContainer() {
+    const div = document.createElement('div');
+    div.style.cssText = `
+      position: relative;
+      background: white;
+      padding: 20px;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      max-width: 90%;
+      max-height: 90%;
+    `;
+    return div;
+  }
+
+  formElementsContainer(formElements) {
+    const div = document.createElement('div');
+    div.style.cssText = `
+      display: flex;
+      flex-direction: column;
+      align-items: left;
+      max-width: 90%;
+      max-height: 90%;
+    `;
+    div.appendChild(formElements);
+    console.log('formContainer', div);
+    return div;
+  }
+
+  html(content) {
+    // Clear the form container before appending new elements
+    while (this._formContainer.firstChild) {
+      this._formContainer.removeChild(this._formContainer.firstChild);
+    }
+
+    if (this.title) {
+      const tit = document.createElement('span');
+      tit.style.cssText = `
+      position: absolute;
+      top: 1px;
+      left: 10px;
+      width: auto;
+      background: transparent;
+      border: none;
+      font-size: 15px;
+      font-weight: bold;
+    `;
+      tit.textContent= this.title;
+      this._formContainer.appendChild(tit);
+    }
+
+    this._formContainer.appendChild(this._cancelButton);
+    let elements = this.formElementsContainer(content);
+    this._formContainer.appendChild(elements);
+    this._overlay.appendChild(this._formContainer);
+    document.body.appendChild(this._overlay);
+  }
+
+  cancelButtonElement() {
+    let btn = document.createElement('span');
+    btn.innerHTML = `<i class="fa fa-times" aria-hidden="true"></i>`;
+    btn.style.cssText = `
+      position: absolute;
+      padding: 0;
+      margin:0;
+      top: 2px;
+      right: 10px;
+      width: 10px;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+    `;
+
+    btn.addEventListener('click', this.closeForm.bind(this));
+    return btn;
+  }
+
+  closeForm() {
+    console.log('form cancel clicked');
+    this._overlay && this._overlay.remove();
+  }
+}
+
+
 class StoreModel extends CompanyModel {
 
   
   constructor(data = {}) {
-    super(data)
+    super()
 
     this.store_type= null
     
@@ -480,6 +692,74 @@ class StoreModel extends CompanyModel {
 
 }
 
+}
+
+class HeadquarterModel extends CompanyModel {
+  constructor(data = {}) {
+    super();
+    this.category = 'headquarter';
+    this._language = 'pt-BR'; // Use a different property to store the language
+    this._industry = null;
+  }
+
+  get formInputs() {
+    return [
+      { field: 'name', label: 'Nome', placeholder: 'Nome Fantasia', type: 'text' },
+      { field: 'banner', label: 'Bandeira', placeholder: 'Nome Fachada', type: 'text' },
+      { field: 'street', label: 'Logradouro', placeholder: 'Nome da rua / av', type: 'text' },
+      { field: 'number', label: 'Numero', placeholder: 'Numero do endereço', type: 'text' },
+      { field: 'number-complement', label: 'Complemento', placeholder: 'Ex.: Casa 3', type: 'text' },
+      { field: 'city', label: 'Cidade', placeholder: 'nome da cidade', type: 'text' },
+      { field: 'state', label: 'UF', placeholder: 'sigla da UF', type: 'text' }
+    ];
+  }
+
+  set language(lang) {
+    this._language = lang; // Set the internal property
+  }
+
+  get language() {
+    return this._language; // Return the internal property
+  }
+
+  set industry(ind) {
+    this._industry = ind; // Set the internal property
+  }
+
+  get industry() {
+    return this._industry; // Return the internal property
+  }
+
+  get industryOptions() {
+    return new Industries(this.language).options;
+  }
+
+  get industryDropdown() {
+    return new FormElement().dropdown(this.industryOptions, this.industry, this.handleIndustryChange.bind(this));
+  }
+
+  handleIndustryChange(event) {
+    this.industry = event.target.value;
+    console.log('Selected industry:', this.industry, event.target.value);
+  }
+
+  get form(){
+
+    let f = new FORM()
+    f.title = 'Matriz'
+    console.log('form', f)
+    let formContent = document.createElement('div')
+    let group = new FormElement().groupContainer()
+    console.log('group', group)
+    let testElement = document.createElement('div');
+    testElement.textContent = 'teste i';
+    group.appendChild(testElement);
+    group.appendChild(this.industryDropdown);
+    
+    formContent.appendChild(group)
+
+    f.html(formContent)
+  }
 }
 
 

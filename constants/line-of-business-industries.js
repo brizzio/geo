@@ -257,7 +257,18 @@ class Industries{
         // Add more industries with their respective properties and icons here...
       ];
     }
-  
+    
+    get options(){
+      
+      return this.data.map(item=>(
+        {
+          id:item.id, 
+          label:item.name[this.lang],
+          description:item.description[this.lang],
+        }
+      ))
+    }
+
     set language(l){
       this.lang=l
     }

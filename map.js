@@ -399,34 +399,7 @@ class Map {
         this.areas = this.areas.filter(area => area !== polygonToRemove);
     }
 
-    /* restoreMapState() {
-        
-        const savedMapState = JSON.parse(localStorage.getItem(this.mapId));
-        if (savedMapState) {
-            this.clearMap()
-            if (savedMapState.markers) {
-                savedMapState.markers.forEach(markerData => {
-                    const restoredMarker = new Marker(this, markerData.latlng, markerData.options);
-                    this.markers.push(restoredMarker);
-                    //this.map.addLayer(restoredMarker);
-                });
-            }
-            if (savedMapState.areas) {
-                savedMapState.areas.forEach(areaData => {
-                    const {id} = areaData
-                    const restoredLayer = L.geoJSON(areaData.geojson).getLayers()[0];
-                    const restoredArea = new PolygonWithContextMenu(this, restoredLayer, id);
-                    restoredArea.stores = areaData.stores?.map(storeData => {
-                        console.log('restoreMapState', storeData)
-                        return new StoreMarker(this, storeData.latlng, storeData.options);
-                    });
-                    //this.areas.push(restoredArea);
-                    this.map.addLayer(restoredLayer);
-                });
-            }
-        }
-    } */
-
+   
     clearMap() {
         this.map.eachLayer((layer) => {
             if (!(layer instanceof L.TileLayer)) {
@@ -434,36 +407,6 @@ class Map {
             }
         });
     }
-
-    /* draw() {
-        
-        this.clearMap()
-        this.removeContextMenu()
-        console.log('drawing map markers', this.markers)
-        console.log('drawing map areas', this.areas)
-        if (this.markers.length) {
-            this.markers.forEach(markerData => {
-                const restoredMarker = new Marker(this, markerData.latlng, markerData.options);
-                this.markers.push(restoredMarker);
-                //this.map.addLayer(restoredMarker);
-            });
-        }
-        if (this.areas.length) {
-            console.log('draw areas', this.areas.length)
-            this.areas.forEach(areaData => {
-                const {id} = areaData
-                //const layer = L.geoJSON(areaData.geojson).getLayers()[0];
-                const area = new Polygon(this, areaData.layer, id);
-                area.stores = areaData.stores?.map(storeData => {
-                    console.log('restoreMapState', storeData)
-                    return new StoreMarker(this, storeData.latlng, storeData.options);
-                });
-                
-                
-            });
-        }
-        
-    } */
 
     
 
