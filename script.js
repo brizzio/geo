@@ -19,15 +19,10 @@ document.addEventListener('DOMContentLoaded', async() =>{
 
     console.log('map', map);
 
-    let hq = new HeadquarterModel()
-    hq.language='pt-BR'
-    console.log('hq', hq.industryOptions)
-    console.log('hq data', hq.data)
+    
 
-    //hq.form;
-
-    const language = new LanguageModel();
-    document.body.appendChild(language.languageDropdown);
+   // const language = new LanguageModel();
+    //document.body.appendChild(language.languageDropdown);
 
     //reverse(-23.5575585,-46.6456233).then(r=>console.log('reverse',r))
 

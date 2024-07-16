@@ -393,6 +393,22 @@ class CompanyConstants{
     set language(l){
       this.lang=l
     }
+
+    static legalPersonOptions(lang){
+      let options = new CompanyConstants().legalTypes
+      console.log('legalPersonOptions options', options)
+      let opt = Object.keys(options).reduce((a,c)=>{
+        let o = {
+          id:c, 
+          label:options[c].name[lang],
+          description:options[c].description[lang],
+        }
+        return [...a, o]
+
+      },[])
+      console.log('legalPersonOptions', opt)
+      return opt  
+    }
   
     static legal(id){
       let o = new CompanyConstants()

@@ -165,27 +165,21 @@ class Map {
 
     showHeadquarterForm = () => {
         console.log('Button clicked');
-        const inputs = [
-            { field: 'name', label: 'Nome', placeholder: 'Nome Fantasia' },
-            { field: 'banner', label: 'Bandeira', placeholder: 'Nome Fachada' },
-            { field: 'street', label: 'Logradouro', placeholder: 'Nome da rua / av' },
-            { field: 'number', label: 'Numero', placeholder: 'Numero do endereço' },
-            { field: 'number-complement', label: 'Complemento', placeholder: 'Ex.: Casa 3' },
-            { field: 'city', label: 'Cidade', placeholder: 'nome da cidade' },
-            { field: 'state', label: 'UF', placeholder: 'sigla da UF' }
-        ];
-        
-        const onSave = (formData) => {
+        let hq = new HeadquarterModel()
+        hq.language='pt-BR'
+                
+        const onSave = async(formData) => {
             console.log('Form Data:', formData);
-            
-            this.addHeadquarter(formData);
+            let response = await this.addHeadquarter(formData);
+            console.log('response', response)
         };
 
         const onCancel = () => {
             console.log('Form cancelled');
         };
-        const form = new DynamicForm(onSave, onCancel);
-        form.show(inputs);
+        
+        hq.showControlButtonForm(onSave);
+        
         console.log('Form rendered');
     }; 
 
@@ -237,31 +231,40 @@ class Map {
             
         }
 
-    addHeadquarter(formData) {
+    
+    
+    
+    
+    async addHeadquarter(formData) {
        
-       const address = formData.street
-       ?`${formData.number} ${formData.street}, ${formData.city}, ${formData.state}`
+       console.log('addHeadquarter formaData', formData) 
+
+       let formDataAddress=formData.address
+       const address = formDataAddress.street
+       ?`${formDataAddress.street_number}, ${formDataAddress.street}, ${formDataAddress.city}, ${formDataAddress.state}`
        :'900, av. paulista, São Paulo, SP' 
 
-       this.getLatLongFromAddress(address)
-        .then(result => {
-            if (result) {
-                console.log(`Latitude: ${result.lat}, Longitude: ${result.lon}`);
-                
-                let latlngs = L.latLng(result.lat, result.lon)
-                
-                const newMarker = Headquarter.init(this,latlngs,result,formData);
-                
-                this.markers.push(newMarker);
+       console.log('locate this', address)
 
-                newMarker.draw()
-                //this.saveMapState();
-            } else {
-                console.log('Address not found');
-            }
-        });
-        
-        
+       try {
+            const result = await new SearchResultModel().geolocateByAddressString(address);
+            console.log(result); // This will log the result
+            // You can also use the result here
+            //const newMarker = Headquarter.init(this,latlngs,result,formData);
+            let headquarter= new HeadquarterModel().parseFromSearchItemData(result)
+            console.log('parsedResultToCompanyModel', headquarter.data);
+            headquarter.update(formData)
+            let updatedAddress= new AddressModel(result.address)
+            updatedAddress.update(formData.address)
+            console.log('updatedAddress', updatedAddress);
+            headquarter.updateAddress = updatedAddress.data
+            console.log('hqData', headquarter.data);
+            return headquarter;
+        } catch (error) {
+            console.error(error);
+        }
+
+       
         
     }
 

@@ -39,6 +39,27 @@ class SearchResultModel {
       return Object.assign({}, new SearchResultModel.data)
   }
 
+  geolocateByAddressString(address) {
+    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&addressdetails=1`;
+
+    return new Promise((resolve, reject) => {
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                if (data && data.length > 0) {
+                    console.log('data:', data);
+                    resolve(SearchResultModel.parseFromNominatimSearchObject(data[0]));
+                } else {
+                    reject(new Error('No results found'));
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching the geocoding data:', error);
+                reject(error);
+            });
+    });
+}
+
   static parseFromNominatimSearchObject(obj){
     //console.log('nominatim', obj)
     let parsed = new SearchResultModel(obj)
@@ -49,7 +70,7 @@ class SearchResultModel {
       delete parsed.type
     }
 
-    if (parsed.address.shop){
+    if (parsed.address?.shop){
       parsed.brand = parsed.address.shop 
       //remove dupe
       delete parsed.address.shop
@@ -156,11 +177,25 @@ class AddressModel {
   }
 
   get data(){
-      return Object.assign({}, this)
+      let obj = Object.assign({},this)
+      for (const key in obj) {
+        if (key.startsWith('_')) {
+          delete obj[key];
+        }
+      }
+      return obj;
   }
 
   static get formData(){
       return Object.assign({}, new AddressModel().data)
+  }
+
+  update(updateObject){
+    const nonNullSource = Object.fromEntries(
+      Object.entries(updateObject).filter(([_, value]) => value !== null)
+    );
+      Object.assign(this, nonNullSource)
+    
   }
 
   static parseFromOverpassSearchTagsObject(tags){
@@ -184,6 +219,8 @@ class AddressModel {
   }
 
   static parseNominatimAddress(address){
+
+    console.log('vai dar um parse no endereço', address)
 
     function renameProperty(obj, oldProp, newProp) {
       if (oldProp in obj) {
@@ -238,6 +275,100 @@ class AddressModel {
     let data = Object.keys(this.data).map(key=> this.data[key] && `<strong>${key}:</strong> ${this.data[key]}<br>`).join('')
     return header + data
   }
+
+  get formInputsGroup(){
+
+    let inputs = {}
+    
+    inputs.street = new FormElement().input('text', this.street, 'Logradourov / Rua / Av.', (event) => this.street = event.target.value, 'Log.', null, null);
+    inputs.number = new FormElement().input('text', this.street_number, 'Numero', (event) => this.street_number = event.target.value, 'Num.', null, null);
+    inputs.complement = new FormElement().input('text', this.street_number_complemnent, 'Complemento', (event) => this.street_number_complemnent = event.target.value, 'Compl.', null, null);
+    inputs.neighbourhood = new FormElement().input('text', this.neighbourhood, 'Bairro', (event) => this.neighbourhood = event.target.value, 'Bairro', null, null);
+    inputs.city = new FormElement().input('text', this.city, 'Cidade', (event) => this.city = event.target.value, 'Cidade', null, null);
+    inputs.state = new FormElement().input('text', this.state, 'Sigla do Estado', (event) => this.state = event.target.value, 'UF', null, null);
+    inputs.postcode = new FormElement().input('text', this.postcode, 'CEP', (event) => this.postcode = event.target.value, 'CEP', null, null);
+    
+    let group = new FormElement().groupContainer()
+    Object.keys(inputs).forEach(input=>group.appendChild(inputs[input]))
+    
+    
+    return group
+  }
+
+  get condensedFormGroup(){
+    let grid = new FormElement().groupContainer()
+    grid.style.cssText = `
+       display: grid;
+       grid-template-columns: repeat(12, 1fr);
+       grid-template-rows: repeat(3, 1fr);
+       grid-column-gap: 5px;
+       grid-row-gap: 2px;
+   `;    
+
+    let streetDiv = document.createElement('div')
+    streetDiv.style.cssText=`
+      grid-area: 1 / 1 / 2 / 10;
+    `
+    let numberDiv = document.createElement('div')
+    numberDiv.style.cssText=`
+      grid-area: 1 / 10 / 2 / 13;
+    `
+    let complementDiv = document.createElement('div')
+    complementDiv.style.cssText=`
+      grid-area: 2 / 1 / 3 / 5;
+    `
+    let neighbourhoodDiv = document.createElement('div')
+    neighbourhoodDiv.style.cssText=`
+      grid-area: 2 / 5 / 3 / 13;
+    `
+    let cityDiv = document.createElement('div')
+    cityDiv.style.cssText=`
+      grid-area: 3 / 1 / 4 / 7;
+    `
+    let stateDiv = document.createElement('div')
+    stateDiv.style.cssText=`
+      grid-area: 3 / 7 / 4 / 10;
+    `
+    let postcodeDiv = document.createElement('div')
+    postcodeDiv.style.cssText=`
+      grid-area: 3 / 10 / 4 / 13;
+    `
+
+    let inputs = {}
+    
+    inputs.street = new FormElement().input('text', this.street, 'Logradourov / Rua / Av.', (event) => this.street = event.target.value, 'Log.', null, null);
+    inputs.number = new FormElement().input('text', this.street_number, 'Numero', (event) => this.street_number = event.target.value, 'Num.', null, null);
+    inputs.complement = new FormElement().input('text', this.street_number_complemnent, 'Complemento', (event) => this.street_number_complemnent = event.target.value, 'Compl.', null, null);
+    inputs.neighbourhood = new FormElement().input('text', this.neighbourhood, 'Bairro', (event) => this.neighbourhood = event.target.value, 'Bairro', null, null);
+    inputs.city = new FormElement().input('text', this.city, 'Cidade', (event) => this.city = event.target.value, 'Cidade', null, null);
+    inputs.state = new FormElement().input('text', this.state, 'Sigla do Estado', (event) => this.state = event.target.value, 'UF', null, null);
+    inputs.postcode = new FormElement().input('text', this.postcode, 'CEP', (event) => this.postcode = event.target.value, 'CEP', null, null);
+    
+    
+    streetDiv.appendChild(inputs.street)
+    numberDiv.appendChild(inputs.number)
+    complementDiv.appendChild(inputs.complement)
+    neighbourhoodDiv.appendChild(inputs.neighbourhood)
+    cityDiv.appendChild(inputs.city)
+    stateDiv.appendChild(inputs.state)
+    postcodeDiv.appendChild(inputs.postcode)
+    
+    grid.appendChild(streetDiv)
+    grid.appendChild(numberDiv)
+    grid.appendChild(complementDiv)
+    grid.appendChild(neighbourhoodDiv)
+    grid.appendChild(cityDiv)
+    grid.appendChild(stateDiv)
+    grid.appendChild(postcodeDiv)
+
+    return grid
+  }
+
+  
+
+
+
+
     
 }
 
@@ -424,27 +555,32 @@ class LanguageModel {
 class CompanyModel {
     constructor(data = {}) {
        
-        this.category=null
-        this.id= null,
-        this.parent_id = null,
-        this.name= null,
-        this.corporate_name= null,
-        this.internal_code= null,
-        this.fiscal_code= null,
-        this.logo= '',
-        this.industry= null,
-        this.legal_type= null,
-        this.founded_year= null,
-        this.employees= null,
-        this.contacts = null,
-        this.description= null,
-        this.building= null,
-        this.address=null
-        this.geo=null
-        this.tags=null
+        this.category=null;
+        this.id= null;
+        this.parent_id = null;
+        this.name= null;
+        this.corporate_name= null;
+        this.internal_code= null;
+        this.fiscal_code= null;
+        this.logo= '';
+        this.industry= null;
+        this.legal_type= null;
+        this.founded_year= null;
+        this.employees= null;
+        this.contacts = null;
+        this.description= null;
+        this.building= null;
+        this.address= {};
+        this.geo=null;
+        this.tags=null;
 
         Object.assign(this, data)
      
+    }
+
+    
+    get formData(){
+      return Object.assign({}, this.data)
     }
 
     static get industries(){
@@ -461,16 +597,65 @@ class CompanyModel {
       return obj;
     }
 
-    get formInputs(){
-      return null
+    
+
+    get legalTypeDropdown() {
+      let options = CompanyConstants.legalPersonOptions('pt-BR')
+      return new FormElement().dropdown(options, this.legal_type, this.handleLegalTypeChange.bind(this), 'Selecione a pessoa juridica ...');
+    }
+
+    set updateAddress(objAddress){
+      this.address = objAddress
+    }
+
+    update(updateObject){
+      const nonNullSource = Object.fromEntries(
+        Object.entries(updateObject).filter(([_, value]) => value !== null)
+    );
+      Object.assign(this, nonNullSource)
+    }
+
+    handleLegalTypeChange(event){
+      this.legal_type = event.target.value;
+      console.log('Selected legal type:', this.legal_type);
+    }
+
+    get main_form_group(){
+
+      const internalCodeInput = new FormElement().input('text', this.internal_code, 'Codigo interno da Empresa', (event) => this.internal_code = event.target.value, 'Cod', null, null);
+
+      const nameInput = new FormElement().input('text', this.name, 'Nome Fantasia', (event) => this.name = event.target.value, 'Nome', null, null);
+
+      const corporateNameInput = new FormElement().input('text', this.corporate_name, 'Razão Social da Empresa', (event) => this.corporate_name = event.target.value, 'Razão Social', null, null);
+
+      const cnpjInput = new FormElement().input('text', this.fiscal_code, 'CNPJ da Empresa', (event) => this.fiscal_code = event.target.value, 'CNPJ', CompanyModel.cnpjMask, CompanyModel.validateCNPJ);
+
+      const descriptionInput = new FormElement().input('text', this.description, 'descrição da empresa', (event) => this.description = event.target.value, 'Descrição', null, null);
+
+      let inputs = [
+        //internalCodeInput,
+        nameInput,
+        //corporateNameInput,
+        //cnpjInput,
+        descriptionInput
+      ]
       
+      let group = new FormElement().groupContainer()
+      // Create an input with CNPJ mask and validation
+     
+      // Append each input to the form container
+      inputs.forEach(input => group.appendChild(input));
+   
+      
+      return group
+  
+     
     }
 
-    get formData(){
-        return Object.assign({}, this.data)
-    }
+    
+    
 
-    static parseFromSearchItemData(data){
+    parseFromSearchItemData(data){
 
         let c = new CompanyModel()
 
@@ -489,175 +674,68 @@ class CompanyModel {
 
     }
 
-    
-    
-}
-
-class FormElement {
-
-  groupContainer(){
-    const div = document.createElement('div');
-    div.style.cssText = `
-      padding: 5px;
-      margin-top: 10px;
-      border-top: 1px solid black;
-      border-bottom: 1px solid black;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      width: 100%;
-      padding-top:15px; 
-      padding-bottom:15px; 
-    `;    
-    return div
-  }
-  dropdown(options, selectedValue, onChange) {
-    const select = document.createElement('select');
-    //console.log('Dropdown options:', options);
-    //console.log('Selected value:', selectedValue);
-
-    options.forEach(option => {
-      const optionElement = document.createElement('option');
-      optionElement.value = option.id;
-      optionElement.textContent = option.label;
-      if (option.value === selectedValue) {
-        optionElement.selected = true;
-      }
-      //console.log('Creating option element:', optionElement);
-      select.appendChild(optionElement);
-    });
-
-    select.addEventListener('change', (event) => {
-      console.log('Event target:', event.target);
-      console.log('Event target value:', event.target.value);
-      onChange(event);
-    });
-
-    return select;
-  }
-
+    // Example CNPJ validation function
+  static validateCNPJ(cnpj){
+    cnpj = cnpj.replace(/[^\d]+/g, '');
   
+    if (cnpj.length !== 14) return false;
+  
+    // Eliminate invalid known CNPJs
+    if (/^(\d)\1+$/.test(cnpj)) return false;
+  
+    // Validate verification digits
+    let length = cnpj.length - 2;
+    let numbers = cnpj.substring(0, length);
+    const digits = cnpj.substring(length);
+    let sum = 0;
+    let pos = length - 7;
+    for (let i = length; i >= 1; i--) {
+      sum += numbers.charAt(length - i) * pos--;
+      if (pos < 2) pos = 9;
+    }
+    let result = sum % 11 < 2 ? 0 : 11 - sum % 11;
+    if (result != digits.charAt(0)) return false;
+  
+    length = length + 1;
+    numbers = cnpj.substring(0, length);
+    sum = 0;
+    pos = length - 7;
+    for (let i = length; i >= 1; i--) {
+      sum += numbers.charAt(length - i) * pos--;
+      if (pos < 2) pos = 9;
+    }
+    result = sum % 11 < 2 ? 0 : 11 - sum % 11;
+    if (result != digits.charAt(1)) return false;
+  
+    return true;
+  };
 
+  static cnpjMask(value){
+      return value
+        .replace(/\D/g, '')
+        .replace(/(\d{2})(\d)/, '$1.$2')
+        .replace(/(\d{3})(\d)/, '$1.$2')
+        .replace(/(\d{3})(\d)/, '$1/$2')
+        .replace(/(\d{4})(\d)/, '$1-$2')
+        .replace(/(-\d{2})\d+?$/, '$1');
+  }
+
+  static validatePhone(){
+    const phonePattern = /^\(\d{3}\) \d{3}-\d{4}$/;
+    if (!phonePattern.test(e.target.value)) return false;
+    return true
+  }
+
+  static phoneMask(value){
+    return value.replace(/\D/g, '').replace(/(\d{3})(\d{3})(\d{4})/, '($1) $2-$3');
+  }
+    
+
+    
+    
 }
 
-class FORM {
-  constructor() {
-    this._overlay = this.overlay();
-    this._formContainer = this.formContainer();
-    this._cancelButton = this.cancelButtonElement();
-    this._title = null; // Initialize title property
-  }
 
-  get title() {
-    return this._title;
-  }
-
-  set title(t) {
-    this._title = t;
-  }
-
-  overlay() {
-    const div = document.createElement('div');
-    div.style.cssText = `
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      background: rgba(0, 0, 0, 0.5);
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      z-index: 9999;
-      overflow: hidden;
-    `;
-    return div;
-  }
-
-  formContainer() {
-    const div = document.createElement('div');
-    div.style.cssText = `
-      position: relative;
-      background: white;
-      padding: 20px;
-      border: 1px solid #ccc;
-      border-radius: 10px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      max-width: 90%;
-      max-height: 90%;
-    `;
-    return div;
-  }
-
-  formElementsContainer(formElements) {
-    const div = document.createElement('div');
-    div.style.cssText = `
-      display: flex;
-      flex-direction: column;
-      align-items: left;
-      max-width: 90%;
-      max-height: 90%;
-    `;
-    div.appendChild(formElements);
-    console.log('formContainer', div);
-    return div;
-  }
-
-  html(content) {
-    // Clear the form container before appending new elements
-    while (this._formContainer.firstChild) {
-      this._formContainer.removeChild(this._formContainer.firstChild);
-    }
-
-    if (this.title) {
-      const tit = document.createElement('span');
-      tit.style.cssText = `
-      position: absolute;
-      top: 1px;
-      left: 10px;
-      width: auto;
-      background: transparent;
-      border: none;
-      font-size: 15px;
-      font-weight: bold;
-    `;
-      tit.textContent= this.title;
-      this._formContainer.appendChild(tit);
-    }
-
-    this._formContainer.appendChild(this._cancelButton);
-    let elements = this.formElementsContainer(content);
-    this._formContainer.appendChild(elements);
-    this._overlay.appendChild(this._formContainer);
-    document.body.appendChild(this._overlay);
-  }
-
-  cancelButtonElement() {
-    let btn = document.createElement('span');
-    btn.innerHTML = `<i class="fa fa-times" aria-hidden="true"></i>`;
-    btn.style.cssText = `
-      position: absolute;
-      padding: 0;
-      margin:0;
-      top: 2px;
-      right: 10px;
-      width: 10px;
-      background: transparent;
-      border: none;
-      cursor: pointer;
-    `;
-
-    btn.addEventListener('click', this.closeForm.bind(this));
-    return btn;
-  }
-
-  closeForm() {
-    console.log('form cancel clicked');
-    this._overlay && this._overlay.remove();
-  }
-}
 
 
 class StoreModel extends CompanyModel {
@@ -699,21 +777,11 @@ class HeadquarterModel extends CompanyModel {
     super();
     this.category = 'headquarter';
     this._language = 'pt-BR'; // Use a different property to store the language
-    this._industry = null;
+   
+
   }
 
-  get formInputs() {
-    return [
-      { field: 'name', label: 'Nome', placeholder: 'Nome Fantasia', type: 'text' },
-      { field: 'banner', label: 'Bandeira', placeholder: 'Nome Fachada', type: 'text' },
-      { field: 'street', label: 'Logradouro', placeholder: 'Nome da rua / av', type: 'text' },
-      { field: 'number', label: 'Numero', placeholder: 'Numero do endereço', type: 'text' },
-      { field: 'number-complement', label: 'Complemento', placeholder: 'Ex.: Casa 3', type: 'text' },
-      { field: 'city', label: 'Cidade', placeholder: 'nome da cidade', type: 'text' },
-      { field: 'state', label: 'UF', placeholder: 'sigla da UF', type: 'text' }
-    ];
-  }
-
+  
   set language(lang) {
     this._language = lang; // Set the internal property
   }
@@ -722,44 +790,62 @@ class HeadquarterModel extends CompanyModel {
     return this._language; // Return the internal property
   }
 
-  set industry(ind) {
-    this._industry = ind; // Set the internal property
-  }
-
-  get industry() {
-    return this._industry; // Return the internal property
-  }
-
   get industryOptions() {
     return new Industries(this.language).options;
   }
 
+  
+
   get industryDropdown() {
-    return new FormElement().dropdown(this.industryOptions, this.industry, this.handleIndustryChange.bind(this));
+    return new FormElement().dropdown(this.industryOptions, this.industry, this.handleIndustryChange.bind(this), 'Selecione o ramo de atividade ...');
   }
 
   handleIndustryChange(event) {
     this.industry = event.target.value;
-    console.log('Selected industry:', this.industry, event.target.value);
+    console.log('Selected industry:', this.industry);
   }
 
-  get form(){
+  showControlButtonForm(onSave){
 
+    //89445052000185
     let f = new FORM()
-    f.title = 'Matriz'
-    console.log('form', f)
-    let formContent = document.createElement('div')
-    let group = new FormElement().groupContainer()
-    console.log('group', group)
-    let testElement = document.createElement('div');
-    testElement.textContent = 'teste i';
-    group.appendChild(testElement);
-    group.appendChild(this.industryDropdown);
+    f.title = 'Dados da Matriz'
+    let address = new AddressModel()
     
-    formContent.appendChild(group)
+    let content = new FormElement().contentContainer()
 
-    f.html(formContent)
+    content.appendChild(this.main_form_group)
+
+    let dropDownsGroup = new FormElement().groupInLineContainer()
+    dropDownsGroup.appendChild(this.industryDropdown);
+    dropDownsGroup.appendChild(this.legalTypeDropdown);
+
+    content.appendChild(dropDownsGroup)
+
+    content.appendChild(address.condensedFormGroup)
+    
+    let saveBtn = new FormElement()
+    
+    saveBtn.onSubmit = async()=>{
+      //this.address = address.data
+      //showSpinner();
+                
+      try {
+          saveBtn.submitButtonElement.appendChild(saveBtn.spinner)
+          await onSave(this.formData);
+      } catch (error) {
+          console.error(error);
+      } finally {
+          saveBtn.spinner.remove()
+          f.closeForm();
+      }
+    }
+    
+    content.appendChild(saveBtn.submitButtonElement);
+    f.html(content)
   }
+
+
 }
 
 

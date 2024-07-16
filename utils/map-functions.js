@@ -51,6 +51,13 @@ async function translateLabel(text, targetLanguage) {
     }
 }
 
+function mergeNonNullProperties(target, source) {
+    const nonNullSource = Object.fromEntries(
+        Object.entries(source).filter(([_, value]) => value !== null)
+    );
+    Object.assign(target, nonNullSource);
+}
+
 
 function transformObjectToArray(obj, labels) {
     const result = [];

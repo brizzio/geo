@@ -29,6 +29,10 @@ main {
     width: 100vw;
 }
 
+@keyframes s3 {
+    to { transform: rotate(1turn); }
+}
+
 @media (max-width: 768px) {
     #map {
         height: 100vh;
