@@ -1670,4 +1670,85 @@ function parseAll(){
     console.log(data)
 }
   
+/*  let overpass={
+  "type": "node",
+  "id": 4128370892,
+  "lat": -23.5573937,
+  "lon": -46.6613810,
+  "tags": {
+    "addr:city": "São Paulo",
+    "addr:country": "BR",
+    "addr:housenumber": "2277",
+    "addr:postcode": "01311-300",
+    "addr:state": "São Paulo",
+    "addr:street": "Avenida Paulista",
+    "brand": "Riachuelo",
+    "brand:wikidata": "Q6668462",
+    "brand:wikipedia": "pt:Lojas Riachuelo",
+    "check_date": "2024-06-08",
+    "contact:phone": "+55 11 2895-0020",
+    "contact:website": "http://www.riachuelo.com.br/",
+    "name": "Riachuelo",
+    "opening_hours": "Mo-Sa 09:00-21:00; Su 11:00-20:00",
+    "shop": "clothes"
+  }
+}
 
+
+let nominatim = {
+  "place_id": 7145121,
+  "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+  "osm_type": "way",
+  "osm_id": 673095700,
+  "lat": "-23.4811284",
+  "lon": "-47.42060364350246",
+  "class": "shop",
+  "type": "bakery",
+  "place_rank": 30,
+  "importance": 0.0000649080643930269,
+  "addresstype": "shop",
+  "name": "Padaria Real",
+  "display_name": "Padaria Real, 2650, Avenida Engenheiro Carlos Reinaldo Mendes, Jardim Bela Vista, Jardim Jockey Club, Sorocaba, Região Imediata de Sorocaba, Região Metropolitana de Sorocaba, Região Geográfica Intermediária de Sorocaba, São Paulo, Região Sudeste, 18013-280, Brasil",
+  "address": {
+      "shop": "Padaria Real",
+      "house_number": "2650",
+      "road": "Avenida Engenheiro Carlos Reinaldo Mendes",
+      "neighbourhood": "Jardim Bela Vista",
+      "suburb": "Jardim Jockey Club",
+      "city_district": "Sorocaba",
+      "city": "Sorocaba",
+      "municipality": "Região Imediata de Sorocaba",
+      "county": "Região Metropolitana de Sorocaba",
+      "state_district": "Região Geográfica Intermediária de Sorocaba",
+      "state": "São Paulo",
+      "ISO3166-2-lvl4": "BR-SP",
+      "region": "Região Sudeste",
+      "postcode": "18013-280",
+      "country": "Brasil",
+      "country_code": "br"
+  },
+  "boundingbox": [
+      "-23.4813410",
+      "-23.4809142",
+      "-47.4210980",
+      "-47.4201088"
+  ]
+}
+
+//console.log('test item model', SearchResultModel.parseFromNominatimSearchObject(nominatim))
+const sr = SearchResultModel.parseFromNominatimSearchObject(nominatim)
+console.log('test overpass item model', sr)
+sr.category = 'headquarter'
+console.log('test overpass item company', CompanyModel.parseFromSearchItemData(sr).data)
+
+console.log('store ==========', StoreModel.parseFromSearchItemData(sr).data)
+console.log('store ==========', StoreModel.parseFromSearchItemData(sr).formData)
+ 
+ 
+
+
+
+console.log('industry ==========', Industries.item('retail'))
+console.log('store type ==========', StoreTypes.item('furniture_store'))
+
+ */

@@ -8,6 +8,7 @@ class Headquarter extends Marker {
         // Ensure to call the parent constructor first
         super(mapContext, latlng);
         
+        this.storage = mapContext.dao.storage
         // Initialize specific properties for Headquarter
         this.type = 'headquarter';
         this.info = data || {}
@@ -141,6 +142,19 @@ class Headquarter extends Marker {
         //this.showEditForm(); // Show the edit form when edit-marker is clicked
         // Remove menu
         this.contextMenu.removeContextMenu();
+        let editable = new HeadquarterModel(this.info)
+        console.log('editable', editable)
+
+        const onUpdate = async(formData) => {
+            console.log('Form Data:', formData, this.storage);
+            //let response = await this.addHeadquarter(formData);
+            this.storage.updateItemById('headquarters', formData.id, formData)
+            console.log('response', formData)
+            //this.dao.addHeadquarter(response)
+        };
+
+        editable.showEditForm(onUpdate)
+        
      }
 
      addBranch(){

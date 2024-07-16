@@ -109,17 +109,17 @@ class Map {
         if(!tree) return;
         
             tree.headquarters && tree.headquarters.forEach(headquarter=> {
-                console.log('headquarter company:', headquarter.company)
-                let latlng = headquarter.company.geo.latlng
-                let hq = new Headquarter(this, latlng, headquarter.company)
+                console.log('headquarter:', headquarter)
+                let latlng = headquarter.geo.latlon
+                new Headquarter(this, latlng, headquarter)
                 //restore headquarter branches if any
-                let branches = headquarter.branches
+                /* let branches = headquarter.branches
                 if(branches.length){
                     branches.forEach(branch=>{
                         console.log('restoring branch:', branch)
                         let b = BranchMarker.restore(this, branch)
                     })
-                }
+                } */
                 //console.log('mk:', mk)
                 //this.map.addLayer(mk.marker)
             })
@@ -172,6 +172,7 @@ class Map {
             console.log('Form Data:', formData);
             let response = await this.addHeadquarter(formData);
             console.log('response', response)
+            this.dao.addHeadquarter(response)
         };
 
         const onCancel = () => {

@@ -597,8 +597,6 @@ class CompanyModel {
       return obj;
     }
 
-    
-
     get legalTypeDropdown() {
       let options = CompanyConstants.legalPersonOptions('pt-BR')
       return new FormElement().dropdown(options, this.legal_type, this.handleLegalTypeChange.bind(this), 'Selecione a pessoa juridica ...');
@@ -606,6 +604,10 @@ class CompanyModel {
 
     set updateAddress(objAddress){
       this.address = objAddress
+    }
+
+    load(payload){
+      return Object.assign(this.data, payload)
     }
 
     update(updateObject){
@@ -778,7 +780,7 @@ class HeadquarterModel extends CompanyModel {
     this.category = 'headquarter';
     this._language = 'pt-BR'; // Use a different property to store the language
    
-
+    Object.assign(this, data)
   }
 
   
@@ -845,6 +847,49 @@ class HeadquarterModel extends CompanyModel {
     f.html(content)
   }
 
+  showEditForm(onUpdate){
+
+    //89445052000185
+    let f = new FORM()
+    f.title = 'Editor'
+    
+    let address = new AddressModel(this.address)
+    
+    let content = new FormElement().contentContainer()
+
+    content.appendChild(this.main_form_group)
+
+    let dropDownsGroup = new FormElement().groupInLineContainer()
+    dropDownsGroup.appendChild(this.industryDropdown);
+    dropDownsGroup.appendChild(this.legalTypeDropdown);
+
+    content.appendChild(dropDownsGroup)
+
+    content.appendChild(address.condensedFormGroup)
+    
+    let saveBtn = new FormElement()
+    
+    saveBtn.onSubmit = async()=>{
+      //this.address = address.data
+      //showSpinner();
+                
+      try {
+          saveBtn.submitButtonElement.appendChild(saveBtn.spinner)
+          this.updateAddress=address.data
+          await onUpdate(this.data);
+      } catch (error) {
+          console.error(error);
+      } finally {
+          saveBtn.spinner.remove()
+          f.closeForm();
+      }
+    }
+    
+    content.appendChild(saveBtn.submitButtonElement);
+    f.html(content)
+  }
+
+
 
 }
 
@@ -897,17 +942,15 @@ class SearchItems{
 
 
 class MapTree{
-     // Private fields
-     #storage;
-     #id;
+     
      
     constructor(id){
-        this.#id = id + '-mt'
+        this._id = id + '-mt'
         this.headquarters=[]
         this.banners=[]
         this.stores=[]
         this.areas=[]
-        this.#storage = new LocalStorageManager(this.#id)
+        this._localstorage = new LocalStorageManager(this._id)
         
         this.load()
     }
@@ -917,7 +960,7 @@ class MapTree{
         // Get all property names
         const propertyNames = Object.getOwnPropertyNames(this);
         // Filter out private fields
-        const publicProperties = propertyNames.filter(prop => !prop.startsWith('#'));
+        const publicProperties = propertyNames.filter(prop => !prop.startsWith('_'));
         // Create a new object with only public properties
         const publicObject = {};
         publicProperties.forEach(prop => {
@@ -928,8 +971,12 @@ class MapTree{
 
     }
 
+    get storage(){
+      return this._localstorage
+    }
+
     load(){
-        let data = this.#storage.getAllItems()
+        let data = this._localstorage.getAllItems()
         
         data && Object.keys(this.tree).forEach(key => this[key]= data[key])
         
@@ -938,18 +985,13 @@ class MapTree{
 
     addHeadquarter(hq){
 
-        if(this.findCompany(hq.company_id)) return;
-
-        
-        
-        let newHq = {
-            company:hq,
-            branches:[],
-
-        }
-        this.headquarters.push(newHq)
+        if(this.findCompany(hq.id)) return;
+       
+        this.headquarters.push(hq)
         this.update()
     }
+
+    
 
     addBanner(banner){
 
@@ -975,11 +1017,11 @@ class MapTree{
     }
 
     update(){
-        this.#storage.setStoredData(this.tree)
+        this._localstorage.setStoredData(this.tree)
     }
 
     findCompany(id) {
-        return this.headquarters.find(element => element['company_id'] !== undefined && element['company_id'] === id);
+        return this.headquarters.find(element => element['id'] !== undefined && element['id'] === id);
     }
 
     findBanner(id) {
@@ -988,6 +1030,11 @@ class MapTree{
     /* findObjectInArray(array, property, value) {
         return array.find(element => element[property] !== undefined && element[property] === value);
     } */
+
+    //CRUD OPERATIONS
+    
+
+
 }
 
 
@@ -998,88 +1045,7 @@ function objectValuesToString(obj) {
 
 
 
-/*  let overpass={
-  "type": "node",
-  "id": 4128370892,
-  "lat": -23.5573937,
-  "lon": -46.6613810,
-  "tags": {
-    "addr:city": "São Paulo",
-    "addr:country": "BR",
-    "addr:housenumber": "2277",
-    "addr:postcode": "01311-300",
-    "addr:state": "São Paulo",
-    "addr:street": "Avenida Paulista",
-    "brand": "Riachuelo",
-    "brand:wikidata": "Q6668462",
-    "brand:wikipedia": "pt:Lojas Riachuelo",
-    "check_date": "2024-06-08",
-    "contact:phone": "+55 11 2895-0020",
-    "contact:website": "http://www.riachuelo.com.br/",
-    "name": "Riachuelo",
-    "opening_hours": "Mo-Sa 09:00-21:00; Su 11:00-20:00",
-    "shop": "clothes"
-  }
-}
 
-
-let nominatim = {
-  "place_id": 7145121,
-  "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
-  "osm_type": "way",
-  "osm_id": 673095700,
-  "lat": "-23.4811284",
-  "lon": "-47.42060364350246",
-  "class": "shop",
-  "type": "bakery",
-  "place_rank": 30,
-  "importance": 0.0000649080643930269,
-  "addresstype": "shop",
-  "name": "Padaria Real",
-  "display_name": "Padaria Real, 2650, Avenida Engenheiro Carlos Reinaldo Mendes, Jardim Bela Vista, Jardim Jockey Club, Sorocaba, Região Imediata de Sorocaba, Região Metropolitana de Sorocaba, Região Geográfica Intermediária de Sorocaba, São Paulo, Região Sudeste, 18013-280, Brasil",
-  "address": {
-      "shop": "Padaria Real",
-      "house_number": "2650",
-      "road": "Avenida Engenheiro Carlos Reinaldo Mendes",
-      "neighbourhood": "Jardim Bela Vista",
-      "suburb": "Jardim Jockey Club",
-      "city_district": "Sorocaba",
-      "city": "Sorocaba",
-      "municipality": "Região Imediata de Sorocaba",
-      "county": "Região Metropolitana de Sorocaba",
-      "state_district": "Região Geográfica Intermediária de Sorocaba",
-      "state": "São Paulo",
-      "ISO3166-2-lvl4": "BR-SP",
-      "region": "Região Sudeste",
-      "postcode": "18013-280",
-      "country": "Brasil",
-      "country_code": "br"
-  },
-  "boundingbox": [
-      "-23.4813410",
-      "-23.4809142",
-      "-47.4210980",
-      "-47.4201088"
-  ]
-}
-
-//console.log('test item model', SearchResultModel.parseFromNominatimSearchObject(nominatim))
-const sr = SearchResultModel.parseFromNominatimSearchObject(nominatim)
-console.log('test overpass item model', sr)
-sr.category = 'headquarter'
-console.log('test overpass item company', CompanyModel.parseFromSearchItemData(sr).data)
-
-console.log('store ==========', StoreModel.parseFromSearchItemData(sr).data)
-console.log('store ==========', StoreModel.parseFromSearchItemData(sr).formData)
- 
- 
-
-
-
-console.log('industry ==========', Industries.item('retail'))
-console.log('store type ==========', StoreTypes.item('furniture_store'))
-
- */
 
 
 

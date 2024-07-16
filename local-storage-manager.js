@@ -85,6 +85,22 @@ class LocalStorageManager {
         this.setStoredData(data);
     }
 
+    // Update an existing item in local storage
+    updateItemById(tableName, lookupValue, updateValue, searchKey='id') {
+        let data = this.getStoredData();
+        let table = data[tableName]
+        const index = table.findIndex(item => item[searchKey] === lookupValue);
+        if (index !== -1) {
+            table[index] = updateValue;
+        } else {
+            console.error(`Item with ${searchKey}= ${lookupValue}not found.`);
+        }
+        
+        data[tableName] = table
+        
+        this.setStoredData(data);
+    }
+
 
     find(key, value) {
         let data = this.getStoredData();
