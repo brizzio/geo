@@ -218,16 +218,9 @@ class Map {
 
         addMarker() {
     
-            const newMarker = Headquarter.init(this, 
-                this.contextMenuLatLng,
-                {
-                    id: new Date().valueOf(),
-                    name:"Matriz"
-                }
-            );
-            this.markers.push(newMarker);
-            this.contextMenu.removeContextMenu();
+            const newMarker = new MarkerNew(this, this.contextMenuLatLng)
             newMarker.draw()
+            this.contextMenu.hideContextMenus()
             //this.saveMapState();
             
         }

@@ -1,12 +1,11 @@
 class SearchMarkIcon {
-    //'https://maps.google.com/mapfiles/ms/icons/yellow-dot.png';
-    constructor(name, visited) {
+    constructor(name) {
         this.name = name;
         this.isSelected = false;
+        this.isVisited = false;
+        this.color = '#484c4c'; // default color
+        this.opacity = 0.5;
         this.element = this.createIconElement();
-        this.color = visited?'green':'#484c4c'
-        this.opacity = 0.5
-        console.log(this)
     }
 
     createIconElement() {
@@ -19,7 +18,7 @@ class SearchMarkIcon {
         const iconElement = document.createElement('i');
         iconElement.className = 'fas fa-circle';
         iconElement.style.fontSize = '22px';
-        iconElement.style.color = this.isSelected ? 'green' : this.color;
+        iconElement.style.color = this.isSelected ? 'green' : (this.isVisited ? 'blue' : this.color);
         iconElement.style.opacity = this.isSelected ? '0.8' : this.opacity;
 
         // Create span for the marker name
@@ -27,7 +26,6 @@ class SearchMarkIcon {
         spanElement.className = 'marker-name';
         spanElement.style.position = 'absolute';
         spanElement.style.top = '-18px';
-        //spanElement.style.left = '20%';
         spanElement.style.transform = 'translateX(10%)';
         spanElement.style.whiteSpace = 'nowrap';
         spanElement.style.color = 'blue';
@@ -51,7 +49,6 @@ class SearchMarkIcon {
         container.innerHTML = this.element.options.html;
 
         const span = container.querySelector('.marker-name');
-        //console.log('zoomLevel', zoomLevel)
         if (zoomLevel > 18) {
             span.style.display = 'block';
         } else {
@@ -66,16 +63,16 @@ class SearchMarkIcon {
     }
 
     setSelected(isSelected, isVisited) {
-        this.isSelected=isSelected
-        this.isVisited=isVisited
+        this.isSelected = isSelected;
+        this.isVisited = isVisited;
         const container = document.createElement('div');
         container.innerHTML = this.element.options.html;
 
         const iconElement = container.querySelector('i');
-        iconElement.style.color = isSelected || isVisited ? 'green' : this.color;
+        iconElement.style.color = isSelected ? 'green' : (isVisited ? 'blue' : this.color);
         iconElement.style.opacity = isSelected ? '0.8' : this.opacity;
 
-        //console.log('updating mark', isSelected, container.innerHTML)
+        console.log('updating mark', isSelected, container.innerHTML);
         // Update the icon's HTML with the new color settings
         this.element = L.divIcon({
             html: container.innerHTML,

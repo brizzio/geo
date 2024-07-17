@@ -829,7 +829,7 @@ class HeadquarterModel extends CompanyModel {
     let saveBtn = new FormElement()
     
     saveBtn.onSubmit = async()=>{
-      //this.address = address.data
+      this.address = address.data
       //showSpinner();
                 
       try {
