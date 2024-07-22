@@ -1,10 +1,11 @@
 class StackedIcon {
-    constructor(htmlTitle, face, selected, visited) {
+    constructor(htmlTitle, face, color, selected, visited) {
         console.log('face', face)
         this.htmlTitle = htmlTitle;
         this.isSelected = selected;
         this.isVisited = visited;
         this.color = '#484c4c'; // default color
+        this._activatedColor = color
         this.opacity = 0.5;
         this._faIconClassName=face
         this.element = this.createIconElement();
@@ -24,6 +25,11 @@ class StackedIcon {
         this.element= this.createIconElement();
     }
 
+    setActiveColor(newColor) {
+        this._activatedColor = newColor;
+        this.element= this.createIconElement();
+    }
+
 
     createIconElement() {
         // Create container div
@@ -37,7 +43,7 @@ class StackedIcon {
 
         const circleIcon = document.createElement('i');
         circleIcon.className = 'fa fa-circle fa-md fa-stack-2x';
-        circleIcon.style.color = this.isSelected ? 'green' : (this.isVisited ? 'green' : this.color);
+        circleIcon.style.color = this.isSelected ? this._activatedColor : (this.isVisited ? this._activatedColor : this.color);
         circleIcon.style.opacity = this.isSelected ? '0.8' : (this.isVisited ? '0.5' : this.opacity);
 
         const flagIcon = document.createElement('i');
@@ -93,7 +99,7 @@ console.log('zoom', zoomLevel)
         container.innerHTML = this.element.options.html;
 
         const circleIcon = container.querySelector('.fa-circle');
-        circleIcon.style.color = isSelected ? 'green' : (isVisited ? 'green' : this.color);
+        circleIcon.style.color = isSelected ? this._activatedColor : (isVisited ? this._activatedColor : this.color);
         circleIcon.style.opacity = isSelected ? '0.8' : (isVisited ? '0.5' : this.opacity);
 
         //console.log('updating mark', isSelected, container.innerHTML);

@@ -1,7 +1,7 @@
-class HeadquarterStoreMarker extends MarkerNew {
+class BranchStoreMarker extends MarkerNew {
     constructor(mapContext, data, options={}){
         super(mapContext, options)
-        this._model = new HeadquarterStoreModel()
+        this._model = new BranchStoreModel()
         this._data = this._model.parse(data)
         
         this.latlng = this._data.geo.latlon
@@ -19,7 +19,7 @@ class HeadquarterStoreMarker extends MarkerNew {
         ];
 
         this.color= this._data.geo.activated_marker_color || 'red'
-        this.face = 'fa-shopping-cart'
+        this.face = 'fa-flag'
         this.fly = true
 
         
@@ -93,7 +93,7 @@ class HeadquarterStoreMarker extends MarkerNew {
                 this.update();
                 }
             
-            this._model.showEditForm('Dados da Loja Matriz', onUpdate)
+            this._model.showEditForm('Dados da Loja', onUpdate)
            
             
             console.log('edit operation completed')

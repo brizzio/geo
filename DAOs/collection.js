@@ -71,7 +71,7 @@ class Collection {
 
     // Read
     read(id) {
-        return this.data.find(item => item.id === id);
+        return this.data.find(item => item.id == id);
     }
 
     // Update

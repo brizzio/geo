@@ -144,6 +144,14 @@ class Map {
             })
         }
 
+        let branchStores = new BranchStoreModel().table.findBy('tenant_id', this.tenant)
+        if(branchStores){
+
+            branchStores.forEach((branchStore,i)=>{
+                console.log('restoring',i, branchStore, branchStore.geo.latlon)
+                new BranchStoreMarker(this, branchStore)
+            })
+        }
 
         //console.log('no update headquarters' , headquarters)
 
@@ -329,6 +337,44 @@ class Map {
 
     addBranchStore(){
         console.log('vai adicionar loja na rede')
+        let instance = new BranchStoreModel()
+        console.log('vai adicionar loja de rede', instance)
+        instance.tenant = this.tenant
+        instance.generateId()
+
+        const onUpdate = async (d) => {
+            try {
+                // Let's geo locate the entered address
+                // Create an address object from form address entries
+                console.log('formData', d);
+                let add = new AddressModel(d.address);
+                console.log('onUpdate', add);
+                let query = add.query || 'Al. Jau 1744, sao paulo, sp'
+                // Await the geolocation result
+                const result = await SearchResultModel.geolocateByAddressString(query);
+                console.log('hq geolocation', result); // This will log the result
+
+                // Merge geolocation address data with original form data address
+                let updated = new BranchStoreModel(d).mergeSearchResult(result)
+                console.log('before save branch store data', updated.formData);
+
+                //update icon color: 
+                updated.geo.activated_marker_color = updated.parentData.geo.activated_marker_color
+
+                // Save the headquarter data
+                updated.table.create(updated.formData);
+
+                // show new marker
+                new BranchStoreMarker(this, updated.formData)
+
+
+            } catch (error) {
+                console.log('onUpdate error', error);
+            }
+        }
+        
+        instance.showEditForm('Nova Loja de Rede', onUpdate)
+
         this.contextMenu.hideContextMenus()
     }
 

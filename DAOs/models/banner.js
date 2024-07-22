@@ -4,6 +4,7 @@ class BannerModel {
         this._language = 'pt-BR'; // Use a different property to store the language
         this._collection = new Collection('banners')
         this.id = null,
+        this.tenant_id = null,
         this.code= null,
         this.name= null,
         this.description=null,
@@ -34,6 +35,11 @@ class BannerModel {
       return this.logo_base_64
     }
 
+    set tenant(t){
+      this.tenant_id=t
+    }
+
+
     
      get data(){
       let obj = Object.assign({},this)
@@ -47,6 +53,19 @@ class BannerModel {
 
     generateId(uid){
       this.id = uid || new Date().valueOf()
+    }
+
+    static options(tenant){
+      let banners = new BannerModel().table.findBy('tenant_id', tenant)
+      
+        return banners.map(item=>(
+          {
+            id:item.id, 
+            label:item.name,
+            description:item.description,
+          }
+        ))
+      
     }
    
     

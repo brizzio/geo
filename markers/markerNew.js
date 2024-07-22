@@ -9,6 +9,8 @@ class MarkerNew {
         this.isDeleted = false;
         this.options = options
 
+        this._color = null
+
         this.menus = [
             { id: 'delete', text: 'Remover', onClick: this.deleteMarker.bind(this) }
         ];
@@ -51,6 +53,15 @@ class MarkerNew {
     set face(faIconName){
         this._face = faIconName
     }
+
+    get color(){
+        return this._color || 'green'
+    }
+
+    set color(c){
+        this._color = c
+    }
+
 
     get selected(){
         return this._selected
@@ -95,7 +106,7 @@ class MarkerNew {
         // Check if marker already exists at this location
        
 
-        this.icon = new StackedIcon(this.title, this.face, this.selected, this.visited);
+        this.icon = new StackedIcon(this.title, this.face, this.color, this.selected, this.visited);
         
         this.options = Object.assign(this.options, {
             icon: this.icon.element
@@ -275,7 +286,7 @@ class MarkerNew {
         const lon = this.latlng[1]
 
         const distance = this._boxSize
-        
+
         const earthRadius = 6378.1; // Radius of the Earth in kilometers
     
         const latChange = distance / earthRadius;

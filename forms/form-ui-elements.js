@@ -55,9 +55,10 @@ class FormElement {
         margin-bottom:5px;
         border: none;
         display: flex;
-        justify-content: space-evenly;
-        align-items: left;
+        justify-content: flex-start;
+        align-items: center;
         width: 100%;
+        gap: 0.25rem; 
     `;    
     return div;
     }
@@ -138,6 +139,7 @@ class FormElement {
         justify-content:center; 
         align-items: center;
         margin-bottom: 2px;
+        width: 100%;
         
       `;
   
@@ -508,12 +510,56 @@ class FormElement {
        return div
     }
 
+    colorPicker(value, onChange, labelText) {
+      const container = document.createElement('div');
+      container.style.cssText = `
+          display: flex;
+          justify-content: flex-start;
+          align-items: center;
+          margin-bottom: 2px;
+      `;
+
+      const label = document.createElement('label');
+      label.textContent = `${labelText}:`;
+      label.style.cssText = `
+          font-size: 12px;
+          font-weight: thin;
+      `;
+      //container.appendChild(label);
+
+      const inputElement = document.createElement('input');
+      inputElement.type = 'color';
+      inputElement.value = value;
+      inputElement.style.cssText = `
+          all: unset;
+          padding: 4px;
+          width: 2rem;
+          height: 2rem;
+          
+          margin-left: 3px;
+          font-size: 12px;
+      `;
+
+      inputElement.addEventListener('change', onChange);
+
+      container.appendChild(inputElement);
+      return container;
+  }
+
+
     generateUniqueKey() {
       return Math.random().toString(36).substring(7); // Generates a random key
     }
 
-    
-  
+    randomColor() {
+      const letters = '0123456789ABCDEF';
+      let color = '#';
+      for (let i = 0; i < 6; i++) {
+          color += letters[Math.floor(Math.random() * 16)];
+      }
+      return color;
+    }
+
   }
   
   
@@ -782,6 +828,7 @@ class FormElement {
         }
     }
 }
+
 
 
 class ImageCropper {
