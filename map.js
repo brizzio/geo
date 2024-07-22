@@ -1,6 +1,7 @@
 class Map {
-     constructor(mapId, latlngs, state = {}) {
-        this.mapId = mapId;
+     constructor(tenant, latlngs, state = {}) {
+        this.mapId = tenant;
+        this.tenant = tenant
         this.latlngs = latlngs || [-23.5676567, -46.6505462]
         //this.zoom = zoom || 10
         this.selectedMarker = null;
@@ -9,6 +10,8 @@ class Map {
         this.areas = [];
         this.selectedItems = [];
         this.contextMenuLatLng = null;
+
+        this.singles = new Collection('singles')
         
         this.dao = new MapTree(this.mapId)
         this.state = this.dao.tree
@@ -27,8 +30,14 @@ class Map {
         //this.map.on('layeradd', (e)=>console.log(e));
 
         this.contextMenu = new ContextMenu([
-            { id: 'add-marker', text: 'Add Marker', onClick: this.addMarker.bind(this) },
-            { id: 'add-area', text: 'Add Area', onClick: this.startDrawingArea.bind(this) },        
+            { id: 'add-banner', text: 'Adicionar Bandeira', onClick: this.addBanner.bind(this) },
+            { id: 'add-hq', text: 'Adicionar Matriz', onClick: this.addHq.bind(this) },
+            { id: 'add-hqstore', text: 'Adicionar Loja Matriz', onClick: this.addHqStore.bind(this) },
+            { id: 'add-branchstore', text: 'Adicionar Loja Rede', onClick: this.addBranchStore.bind(this) },
+            { id: 'add-concurrentStore', text: 'Adicionar Concorrente', onClick: this.addConcurrentStore.bind(this) },
+            { id: 'add-cluster', text: 'Adicionar Cluster', onClick: this.addCluster.bind(this) },
+            { id: 'add-area', text: 'Criar Area de Interesse', onClick: this.startDrawingArea.bind(this) },
+            { id: 'add-marker', text: 'Adicionar Local de Estudo', onClick: this.addMarker.bind(this) },        
         ]);
 
         this.map.on('contextmenu', (event) => {
@@ -86,14 +95,19 @@ class Map {
     } */
 
    
-
-    
-
     update() {
-        this.clearMap()
+        this.map.eachLayer((layer) => {
+            if (!(layer instanceof L.TileLayer)) {
+                console.log('removin layer', layer)
+                this.map.removeLayer(layer);
+            }
+        });
         let storedSearchItems = new SearchItems().data
-        let tree = this.state
+        let tree = null
 
+        let singles = this.singles.findBy('tenant_id', this.tenant)
+        
+        
         //console.log(storedSearchItems)
         if(storedSearchItems){
             storedSearchItems.forEach(item=> {
@@ -104,54 +118,37 @@ class Map {
             })
         }
 
-        console.log('no update tree' , tree)
+        if(singles){
 
-        if(!tree) return;
-        
-            tree.headquarters && tree.headquarters.forEach(headquarter=> {
-                console.log('headquarter:', headquarter)
-                let latlng = headquarter.geo.latlon
-                new Headquarter(this, latlng, headquarter)
-                //restore headquarter branches if any
-                /* let branches = headquarter.branches
-                if(branches.length){
-                    branches.forEach(branch=>{
-                        console.log('restoring branch:', branch)
-                        let b = BranchMarker.restore(this, branch)
-                    })
-                } */
-                //console.log('mk:', mk)
-                //this.map.addLayer(mk.marker)
+            singles.forEach((single,i)=>{
+                console.log('restoring',i, single, single.geo.latlon)
+                new SingleMarker(this, single)
             })
-        
+        }
 
-       /*  const savedMapState = JSON.parse(localStorage.getItem(this.mapId));
+        let headquarters = new HeadquarterModel().table.findBy('tenant_id', this.tenant)
+        if(headquarters){
 
-        if (savedMapState) {
-            this.clearMap()
-            if (savedMapState.headquarters) {
-                savedMapState.headquarters.forEach(headquarter => new Headquarter(
-                    this, 
-                    headquarter.latlngs,
-                    headquarter.id,
-                    headquarter.company_name,
-                    headquarter.company_address,
-                    headquarter.company_type,
-                    headquarter.boundingBox 
-                ))
-            }
-             /* if (savedMapState.areas) {
-                savedMapState.areas.forEach(areaData => {
-                    const {latlngs, id, name, options, showBoundingBox, stores } = areaData
-                    const restoredLayer = L.geoJSON(areaData.geojson).getLayers()[0];
-                    const restoredArea = new Polygon(this,latlngs, id, name, options, showBoundingBox, stores);
-                    this.areas.push(restoredArea);
-                    //this.map.addLayer(restoredLayer);
-                }); 
-            } */
-        
-        //}  
-        //*/
+            headquarters.forEach((headquarter,i)=>{
+                console.log('restoring',i, headquarter, headquarter.geo.latlon)
+                new HeadquarterMarker(this, headquarter)
+            })
+        }
+
+        let headquarterStores = new HeadquarterStoreModel().table.findBy('tenant_id', this.tenant)
+        if(headquarterStores){
+
+            headquarterStores.forEach((headquarterStore,i)=>{
+                console.log('restoring',i, headquarterStore, headquarterStore.geo.latlon)
+                new HeadquarterStoreMarker(this, headquarterStore)
+            })
+        }
+
+
+        //console.log('no update headquarters' , headquarters)
+
+
+
     }
 
     showContextMenu(event) {
@@ -206,25 +203,144 @@ class Map {
         console.log('Form rendered');
     }; 
 
-    /* addMarker() {
     
-        const newMarker = new Marker(this, this.contextMenuLatLng);
-        this.markers.push(newMarker);
-        this.contextMenu.removeContextMenu();
-        newMarker.draw()
-        //this.saveMapState();
-        
-    } */
 
-        addMarker() {
+    addMarker() {
+        
+        let m = Single.init( this.tenant , this.contextMenuLatLng)
+        console.log(m.data, this.mapId)
     
-            const newMarker = new MarkerNew(this, this.contextMenuLatLng)
-            newMarker.draw()
-            this.contextMenu.hideContextMenus()
-            //this.saveMapState();
-            
+        this.singles.create(m.data)
+        
+        console.log('singles', this.singles)
+
+        this.update()
+        //MarkerNew.init(this, this.contextMenuLatLng)
+        this.contextMenu.hideContextMenus()
+        //this.saveMapState();
+       
+    }
+
+    async addBanner(){
+        let b = new BannerModel()
+        console.log('vai adicionar banner', b)
+        b.tenant = this.tenant
+        b.generateId()
+
+        const onUpdate = async (d) => {
+            try {
+                // Let's geo locate the entered address
+                // Create an address object from form address entries
+                console.log('formData', d);
+               
+                 // Merge geolocation address data with original form data address
+                 let updated = new BannerModel(d)
+                 console.log('before save headquarter data', updated.data);
+ 
+                 // Save the headquarter data
+                 updated.table.create(updated.data);
+
+
+            } catch (error) {
+                console.log('onUpdate error', error);
+            }
         }
 
+        b.showEditForm('Nova Bandeira', onUpdate)
+        this.contextMenu.hideContextMenus()
+    }
+
+    async addHq(){
+     
+        let h = new HeadquarterModel()
+        console.log('vai adicionar matriz', h)
+        h.tenant = this.tenant
+        h.generateId()
+        
+        const onUpdate = async (d) => {
+            try {
+                // Let's geo locate the entered address
+                // Create an address object from form address entries
+                console.log('formData', d);
+                let add = new AddressModel(d.address);
+                console.log('onUpdate', add);
+                let query = add.query || 'Av. Paulista 900, sao paulo, sp'
+                // Await the geolocation result
+                const result = await SearchResultModel.geolocateByAddressString(query);
+                console.log('hq geolocation', result); // This will log the result
+
+                // Merge geolocation address data with original form data address
+                let nhq = new HeadquarterModel(d).mergeSearchResult(result)
+                console.log('before save headquarter data', nhq.formData);
+
+                // Save the headquarter data
+                nhq.table.create(nhq.formData);
+
+                // show new marker
+                new HeadquarterMarker(this, nhq.formData)
+
+
+            } catch (error) {
+                console.log('onUpdate error', error);
+            }
+        }
+        
+        h.showEditForm('Nova Matriz', onUpdate)
+        this.contextMenu.hideContextMenus()
+    }
+
+    addHqStore(){
+        let instance = new HeadquarterStoreModel()
+        console.log('vai adicionar loja matriz', instance)
+        instance.tenant = this.tenant
+        instance.generateId()
+        
+        const onUpdate = async (d) => {
+            try {
+                // Let's geo locate the entered address
+                // Create an address object from form address entries
+                console.log('formData', d);
+                let add = new AddressModel(d.address);
+                console.log('onUpdate', add);
+                let query = add.query || 'Al. Santos 734, sao paulo, sp'
+                // Await the geolocation result
+                const result = await SearchResultModel.geolocateByAddressString(query);
+                console.log('hq geolocation', result); // This will log the result
+
+                // Merge geolocation address data with original form data address
+                let updated = new HeadquarterStoreModel(d).mergeSearchResult(result)
+                console.log('before save headquarter data', updated.formData);
+
+                // Save the headquarter data
+                updated.table.create(updated.formData);
+
+                // show new marker
+                new HeadquarterStoreMarker(this, updated.formData)
+
+
+            } catch (error) {
+                console.log('onUpdate error', error);
+            }
+        }
+        
+        instance.showEditForm('Nova Loja Matriz', onUpdate)
+        this.contextMenu.hideContextMenus()
+    }
+
+    addBranchStore(){
+        console.log('vai adicionar loja na rede')
+        this.contextMenu.hideContextMenus()
+    }
+
+    addConcurrentStore(){
+        console.log('vai adicionar loja concorrente')
+        this.contextMenu.hideContextMenus()
+    }
+
+    addCluster(){
+        console.log('vai adicionar cluster!!')
+        this.contextMenu.hideContextMenus()
+    }
     
     
     
@@ -400,6 +516,7 @@ class Map {
     clearMap() {
         this.map.eachLayer((layer) => {
             if (!(layer instanceof L.TileLayer)) {
+                console.log('removin layer', layer)
                 this.map.removeLayer(layer);
             }
         });

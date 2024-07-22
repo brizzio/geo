@@ -72,7 +72,7 @@ class SearchMarkIcon {
         iconElement.style.color = isSelected ? 'green' : (isVisited ? 'blue' : this.color);
         iconElement.style.opacity = isSelected ? '0.8' : this.opacity;
 
-        console.log('updating mark', isSelected, container.innerHTML);
+        //console.log('updating mark', isSelected, container.innerHTML);
         // Update the icon's HTML with the new color settings
         this.element = L.divIcon({
             html: container.innerHTML,

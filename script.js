@@ -60,7 +60,7 @@ async function reverse(lat, lon) {
 
 const retailMap = (latlngs)=>{
 
-    const retailMap = new Map('retailMap', latlngs)
+    const retailMap = new Map('tenant1', latlngs)
 
     
 
@@ -75,9 +75,10 @@ const retailMap = (latlngs)=>{
 
 
 
-
-
-
+function getRandomHexColor() {
+    const hex = Math.floor(Math.random() * 16777215).toString(16);
+    return `#${hex.padStart(6, '0')}`;
+}
 
 function generateUniqueId(identifier = 'id') {
     const timestamp = Date.now(); // Current timestamp in milliseconds

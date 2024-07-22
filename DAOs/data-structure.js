@@ -36,10 +36,10 @@ class SearchResultModel {
   }
 
   static get formData(){
-      return Object.assign({}, new SearchResultModel.data)
+      return Object.assign({}, new SearchResultModel().data)
   }
 
-  geolocateByAddressString(address) {
+  static geolocateByAddressString(address) {
     const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&addressdetails=1`;
 
     return new Promise((resolve, reject) => {
@@ -48,7 +48,7 @@ class SearchResultModel {
             .then(data => {
                 if (data && data.length > 0) {
                     console.log('data:', data);
-                    resolve(SearchResultModel.parseFromNominatimSearchObject(data[0]));
+                    resolve(this.parseFromNominatimSearchObject(data[0]));
                 } else {
                     reject(new Error('No results found'));
                 }
@@ -163,7 +163,7 @@ class AddressModel {
       
       this.street= null,
       this.street_number = null,
-      this.street_number_complemnent = null,
+      this.street_number_complement = null,
       this.neighbourhood= null,
       this.suburb= null,
       this.city= null,
@@ -246,6 +246,33 @@ class AddressModel {
       
   }
 
+  get query(){
+
+    const street= this.street || ''
+    const street_number = this.street_number  || ''
+    const street_number_complement = this.street_number_complement  || ''
+    const neighbourhood= this.neighbourhood || ''
+    const suburb= this.suburb || ''
+    const city= this.city || ''
+    const state= this.state || ''
+    const region= this.region || ''
+    const postcode= this.postcode || ''
+    const country= this.country || ''
+    const country_code= this.country_code || ''
+
+    if (!street) return;
+
+    const line1 = `${street}${street_number?', ':''}${street_number}`
+
+    const line2 = `${city}${state?', ':''}${state}`
+
+    return `${line1}, ${line2}`
+    
+  }
+
+
+
+
   get stringify(){
 
     const street= this.street || ''
@@ -282,7 +309,7 @@ class AddressModel {
     
     inputs.street = new FormElement().input('text', this.street, 'Logradourov / Rua / Av.', (event) => this.street = event.target.value, 'Log.', null, null);
     inputs.number = new FormElement().input('text', this.street_number, 'Numero', (event) => this.street_number = event.target.value, 'Num.', null, null);
-    inputs.complement = new FormElement().input('text', this.street_number_complemnent, 'Complemento', (event) => this.street_number_complemnent = event.target.value, 'Compl.', null, null);
+    inputs.complement = new FormElement().input('text', this.street_number_complement, 'Complemento', (event) => this.street_number_complement = event.target.value, 'Compl.', null, null);
     inputs.neighbourhood = new FormElement().input('text', this.neighbourhood, 'Bairro', (event) => this.neighbourhood = event.target.value, 'Bairro', null, null);
     inputs.city = new FormElement().input('text', this.city, 'Cidade', (event) => this.city = event.target.value, 'Cidade', null, null);
     inputs.state = new FormElement().input('text', this.state, 'Sigla do Estado', (event) => this.state = event.target.value, 'UF', null, null);
@@ -336,9 +363,9 @@ class AddressModel {
 
     let inputs = {}
     
-    inputs.street = new FormElement().input('text', this.street, 'Logradourov / Rua / Av.', (event) => this.street = event.target.value, 'Log.', null, null);
+    inputs.street = new FormElement().input('text', this.street, 'Logradouro / Rua / Av.', (event) => this.street = event.target.value, 'Log.', null, null);
     inputs.number = new FormElement().input('text', this.street_number, 'Numero', (event) => this.street_number = event.target.value, 'Num.', null, null);
-    inputs.complement = new FormElement().input('text', this.street_number_complemnent, 'Complemento', (event) => this.street_number_complemnent = event.target.value, 'Compl.', null, null);
+    inputs.complement = new FormElement().input('text', this.street_number_complement, 'Complemento', (event) => this.street_number_complement = event.target.value, 'Compl.', null, null);
     inputs.neighbourhood = new FormElement().input('text', this.neighbourhood, 'Bairro', (event) => this.neighbourhood = event.target.value, 'Bairro', null, null);
     inputs.city = new FormElement().input('text', this.city, 'Cidade', (event) => this.city = event.target.value, 'Cidade', null, null);
     inputs.state = new FormElement().input('text', this.state, 'Sigla do Estado', (event) => this.state = event.target.value, 'UF', null, null);
@@ -363,11 +390,6 @@ class AddressModel {
 
     return grid
   }
-
-  
-
-
-
 
     
 }
@@ -444,7 +466,7 @@ class ContactsModel {
 
 
 
-class BannerModel {
+class BannerModelOld {
   constructor(data = {}) {
 
       this.id = null,
@@ -469,9 +491,39 @@ class BannerModel {
     
   }
 
-  static get formData(){
-      let address = new BannerModel()
-      return Object.assign({}, address.data)
+  get form(){
+
+    const codeInput = new FormElement().input('text', this.code, 'Codigo Interno', (event) => this.code = event.target.value, 'Cod.', null, null);
+
+    const nameInput = new FormElement().input('text', this.name, 'Nome da bandeira', (event) => this.name = event.target.value, 'Bandeira', null, null);
+
+    const urlInput = new FormElement().input('text', this.logo_url, 'url do logotipo', (event) => {
+      
+      this.logo_url = event.target.value
+      console.log('banner form logo changed', this.logo_url)
+
+    }, 'Logo', null, null);
+
+    const descriptionInput = new FormElement().input('text', this.description, 'descrição da empresa', (event) => this.description = event.target.value, 'Descrição', null, null);
+
+    let inputs = [
+      codeInput,
+      nameInput,
+      urlInput
+    ]
+    
+    let inLineGroup = new FormElement().groupInLineContainer()
+    // Create an input with CNPJ mask and validation
+   
+    // Append each input to the form container
+    inputs.forEach(input => inLineGroup.appendChild(input));
+    
+    let group = new FormElement().groupContainer()
+    group.appendChild(inLineGroup)
+    
+    return group
+
+   
   }
 
   static init(data){
@@ -556,6 +608,7 @@ class CompanyModel {
     constructor(data = {}) {
        
         this.category=null;
+        this.tenant_id=null;
         this.id= null;
         this.parent_id = null;
         this.name= null;
@@ -574,15 +627,41 @@ class CompanyModel {
         this.geo=null;
         this.tags=null;
 
+        this._language = 'pt-BR';
+
         Object.assign(this, data)
      
     }
 
+    set color(c){
+      this._color = c
+    }
+
+    get color(){
+      return this._color
+    }
+
+    set language(lang) {
+      this._language = lang; // Set the internal property
+    }
+  
+    get language() {
+      return this._language; // Return the internal property
+    }
+
+    set tenant(t){
+      this.tenant_id=t
+    }
+
+    generateId(uid){
+      this.id = uid || new Date().valueOf()
+    }
     
     get formData(){
       return Object.assign({}, this.data)
     }
 
+    
     static get industries(){
       return getOptionsListFromConstant(industries, 'pt-BR')
     }
@@ -605,6 +684,28 @@ class CompanyModel {
     set updateAddress(objAddress){
       this.address = objAddress
     }
+
+    mergeSearchResult(data){
+      console.log('incoming data', this)
+      //manage address
+      let actualAddress = Object.fromEntries(
+          Object.entries(this.address).filter(([_, value]) => value !== null))
+      let searchResultAddress = data.address
+      
+      let mergedAddress = Object.assign(searchResultAddress, actualAddress)
+
+      this.building=data.addresstype
+      this.brand = data.brand || null
+      this.corporate_name=data.operator || null
+      this.tags=data.tags || null
+      this.address = mergedAddress
+      this.contacts = data.contacts || null
+      this.geo=Object.assign(data.geo, this.geo)
+             
+
+      return this
+
+  }
 
     load(payload){
       return Object.assign(this.data, payload)
@@ -774,10 +875,10 @@ class StoreModel extends CompanyModel {
 
 }
 
-class HeadquarterModel extends CompanyModel {
+class HeadquarterModelOld extends CompanyModel {
   constructor(data = {}) {
     super();
-    this.category = 'headquarter';
+    this.category = 'headquarterOld';
     this._language = 'pt-BR'; // Use a different property to store the language
    
     Object.assign(this, data)

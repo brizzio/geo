@@ -201,7 +201,18 @@ class StoreTypes{
         // Add more store types with their respective properties and icons here...
       };
     }
-  
+    
+    get options(){
+      let d = this.data
+      return Object.keys(d).map(key=>(
+        {
+          id:key, 
+          label:d[key].name[this.lang],
+          description:d[key].description[this.lang],
+        }
+      ))
+    }
+    
     set language(l){
       this.lang=l
     }
