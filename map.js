@@ -69,7 +69,7 @@ class Map {
 
         // Define buttons and actions
         const buttons = [
-            { text: '+ Matriz', onClick: () => this.showHeadquarterForm() },
+            { text: 'Clusters', onClick: () => clusters() },
             { text: '+ Bandeira', onClick: () => this.showBannerForm() },
             { text: '+ Filial', onClick: () => alert('Filial button clicked') },
             { text: '+ Concorrente', onClick: () => alert('Concorrente Button clicked') },

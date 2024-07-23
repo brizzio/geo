@@ -2,6 +2,11 @@
 
 document.addEventListener('DOMContentLoaded', async() =>{
 
+    document.documentElement.style.overflow = 'hidden';
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.height = '100%';
+    document.body.style.height = '100%';
+
     const geo = new Geo();
     
     //let position = await geo.getCurrentPosition()
@@ -69,6 +74,16 @@ const retailMap = (latlngs)=>{
     return retailMap
 
 }
+
+//control bar buttons functions
+
+const clusters = ()=> {
+    console.log('call clusters');
+    
+   new ClusterEditorPage()
+}
+
+
 
 
 
