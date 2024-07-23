@@ -4,7 +4,7 @@ class MarkerNew {
         this.map = this.mapContext.map;
         //this.latlng = latlng || null;
     
-        this._fly = false
+        this._fly = options?options.flyTo:false
         this._face = null
         this.isDeleted = false;
         this.options = options
@@ -144,8 +144,8 @@ class MarkerNew {
             console.log('Marker is deleted, skipping update');
             return; // Don't update if deleted
         }
-        console.log('updating marker', this, this.selected, this.visited);
-        console.log('layers', this.getAllLayers(this.mapContext.map));
+        //console.log('updating marker', this, this.selected, this.visited);
+        //console.log('layers', this.getAllLayers(this.mapContext.map));
         this.icon.setSelected(this.selected, this.visited);
         this.icon.updateVisibility(this.map);
 
@@ -177,15 +177,7 @@ class MarkerNew {
         }, 100));
     }
 
-    getAllLayers(map) {
-        let layers = [];
-        map.eachLayer(function(layer) {
-            if (layer instanceof L.Marker) {
-               layers.push(layer)
-            }
-        });
-        return layers;
-    }
+   
     
     draw() {
         if (this.isDeleted) return; // Don't draw if deleted
@@ -195,7 +187,7 @@ class MarkerNew {
             if (this.marker && !this.map.hasLayer(this.marker)) {
                 console.log('vai adicionar', !!this.marker , !!this.map.hasLayer(this.marker), this.marker && !this.map.hasLayer(this.marker))
                 this.map.addLayer(this.marker);
-    
+                this.fly && this.flyToLocation()
             }
 
            /*  if (this.selected) {

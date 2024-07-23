@@ -39,14 +39,7 @@ class Collection {
         this.data = this.loadData() || [];
     }
 
-    get table() {
-        return this._id;
-    }
-
-    set table(name) {
-        this._id = name;
-        this.data = this.loadData() || [];
-    }
+    
 
     // Load data from localStorage
     loadData() {
@@ -110,4 +103,6 @@ class Collection {
     findBy(property, value) {
         return this.data.filter(item => item[property] === value);
     }
+
+   
 }

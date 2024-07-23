@@ -121,7 +121,7 @@ class Map {
         if(singles){
 
             singles.forEach((single,i)=>{
-                console.log('restoring',i, single, single.geo.latlon)
+                //console.log('restoring',i, single, single.geo.latlon)
                 new SingleMarker(this, single)
             })
         }
@@ -130,7 +130,7 @@ class Map {
         if(headquarters){
 
             headquarters.forEach((headquarter,i)=>{
-                console.log('restoring',i, headquarter, headquarter.geo.latlon)
+                //console.log('restoring',i, headquarter, headquarter.geo.latlon)
                 new HeadquarterMarker(this, headquarter)
             })
         }
@@ -139,7 +139,7 @@ class Map {
         if(headquarterStores){
 
             headquarterStores.forEach((headquarterStore,i)=>{
-                console.log('restoring',i, headquarterStore, headquarterStore.geo.latlon)
+                //console.log('restoring',i, headquarterStore, headquarterStore.geo.latlon)
                 new HeadquarterStoreMarker(this, headquarterStore)
             })
         }
@@ -148,12 +148,21 @@ class Map {
         if(branchStores){
 
             branchStores.forEach((branchStore,i)=>{
-                console.log('restoring',i, branchStore, branchStore.geo.latlon)
+                //console.log('restoring',i, branchStore, branchStore.geo.latlon)
                 new BranchStoreMarker(this, branchStore)
             })
         }
 
-        //console.log('no update headquarters' , headquarters)
+        let concurrentStores = new ConcurrentStoreModel().table.findBy('tenant_id', this.tenant)
+        if(concurrentStores){
+
+            concurrentStores.forEach((concurrentStore,i)=>{
+                //console.log('restoring',i, concurrentStore, concurrentStore.geo.latlon)
+                new ConcurrentStoreMarker(this, concurrentStore)
+            })
+        }
+
+        console.log('map updated layers' , this.getAllLayers())
 
 
 
@@ -245,7 +254,7 @@ class Map {
                  let updated = new BannerModel(d)
                  console.log('before save headquarter data', updated.data);
  
-                 // Save the headquarter data
+                 // Save the data
                  updated.table.create(updated.data);
 
 
@@ -379,12 +388,44 @@ class Map {
     }
 
     addConcurrentStore(){
-        console.log('vai adicionar loja concorrente')
+        
+        let instance = new ConcurrentStoreModel()
+        console.log('vai adicionar ConcurrentStore', instance)
+        instance.tenant = this.tenant
+        instance.generateId()
+        instance.showEditForm('Cadastro de Concorrente', instance.onCreate, this)
+
         this.contextMenu.hideContextMenus()
     }
 
     addCluster(){
-        console.log('vai adicionar cluster!!')
+        let instance = new ClusterModel()
+        console.log('vai adicionar Cluster', instance)
+        instance.tenant = this.tenant
+        instance.generateId()
+
+        const onUpdate = async (d) => {
+            try {
+                // Let's geo locate the entered address
+                // Create an address object from form address entries
+                console.log('formData', d);
+                
+                let updated = new ClusterModel(d)
+                console.log('before save cluster data', updated.data);
+
+                // Save the cluster data
+                updated.table.create(updated.data);
+
+               alert('cluster criado com sucesso!')
+
+
+            } catch (error) {
+                console.log('Cluster onUpdate error', error);
+            }
+        }
+        
+        instance.showEditForm('Novo Cluster', onUpdate)
+
         this.contextMenu.hideContextMenus()
     }
     
@@ -568,15 +609,16 @@ class Map {
         });
     }
 
-    
+    getAllLayers() {
+        let layers = [];
+        this.map.eachLayer(function(layer) {
+            if (layer instanceof L.Marker) {
+               layers.push(layer)
+            }
+        });
+        return layers;
+    }
 
     
 }
 
-function getAllLayers(map) {
-    let layers = [];
-    map.eachLayer(function(layer) {
-        layers.push(layer);
-    });
-    return layers;
-}

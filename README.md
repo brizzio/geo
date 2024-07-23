@@ -94,3 +94,44 @@ Copiar código
 
 
 
+Here's how you might implement runtime denormalization in JavaScript:
+
+javascript
+Copiar código
+const users = [
+    {"id": 1, "name": "Alice", "addressId": 101},
+    {"id": 2, "name": "Bob", "addressId": 102}
+];
+
+const addresses = [
+    {"id": 101, "city": "New York", "state": "NY"},
+    {"id": 102, "city": "San Francisco", "state": "CA"}
+];
+
+// Convert addresses array to a map for easy lookup
+const addressMap = addresses.reduce((map, address) => {
+    map[address.id] = address;
+    return map;
+}, {});
+
+// Function to denormalize user data at runtime
+const denormalizeUsers = (users, addressMap) => {
+    return users.map(user => ({
+        ...user,
+        address: addressMap[user.addressId]
+    }));
+};
+
+// Fetching and denormalizing users data at runtime
+const getDenormalizedUsers = () => {
+    // Simulate fetching users and addresses from a database
+    return new Promise((resolve) => {
+        const denormalizedUsers = denormalizeUsers(users, addressMap);
+        resolve(denormalizedUsers);
+    });
+};
+
+// Example usage
+getDenormalizedUsers().then(denormalizedUsers => {
+    console.log(JSON.stringify(denormalizedUsers, null, 2));
+});

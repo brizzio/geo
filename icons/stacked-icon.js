@@ -77,7 +77,7 @@ class StackedIcon {
         const zoomLevel = map.getZoom();
         const container = document.createElement('div');
         container.innerHTML = this.element.options.html;
-console.log('zoom', zoomLevel)
+        //console.log('zoom', zoomLevel)
         const nameSpan = container.querySelector('.marker-name');
         if (zoomLevel > 10) {
             nameSpan.style.display = 'block';

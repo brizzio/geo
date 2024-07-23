@@ -50,7 +50,10 @@ class SearchResultModel {
                     console.log('data:', data);
                     resolve(this.parseFromNominatimSearchObject(data[0]));
                 } else {
-                    reject(new Error('No results found'));
+                   
+                       alert('A busca pelo endereço nao gerou nenhum resultado. Tente denovo...')
+                      reject(new Error('No results found'))
+                    
                 }
             })
             .catch(error => {
@@ -388,8 +391,16 @@ class AddressModel {
     grid.appendChild(stateDiv)
     grid.appendChild(postcodeDiv)
 
+   
+      /* let btn = new FormElement().asyncActionButton('localizar', async () => {
+        console.log('Form submitted');
+        await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate async operation
+    }); */
+   
     return grid
   }
+
+ 
 
     
 }

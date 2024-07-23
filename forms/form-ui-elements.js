@@ -546,6 +546,168 @@ class FormElement {
       return container;
   }
 
+  asyncActionButton(title, onClick) {
+
+        title = title.toUpperCase();
+        let div = document.createElement('div');
+        div.style.cssText = `
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: 5px;
+        `;
+
+        // creating button element
+        let button = document.createElement('button');
+        button.id = 'btnSave';
+        button.style.cssText = `
+            background-color: #04AA6D; /* Green */
+            border: none;
+            color: white;
+            width: 100%;
+            height: 2rem;
+            padding: 3px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 4px 2px;
+            transition-duration: 0.4s;
+            cursor: pointer;
+        `;
+
+        // Adding event listeners for hover effect
+        button.addEventListener('mouseover', () => {
+            button.style.backgroundColor = '#2d661b';
+        });
+
+        button.addEventListener('mouseout', () => {
+            button.style.backgroundColor = '#04AA6D';
+        });
+
+        // creating text to be displayed on button
+        let text = document.createTextNode(title);
+
+        // appending text to button
+        button.appendChild(text);
+      
+
+        button.onclick = async () => {
+            button.appendChild(this._spinner);
+            await onClick();
+            this._spinner.remove()
+        };
+
+        // appending button to div
+        div.appendChild(button);
+        return div;
+    }
+    editableDropdown(options, selectedValue, onChange, placeholder = 'Selecione uma opção...', onAddNew) {
+      const container = document.createElement('div');
+      container.style.cssText = `
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    `;
+
+      const select = document.createElement('select');
+
+      // Add the placeholder option
+      const placeholderOption = document.createElement('option');
+      placeholderOption.textContent = placeholder;
+      placeholderOption.disabled = true;
+      placeholderOption.selected = !selectedValue; // If no selectedValue, select the placeholder
+      select.appendChild(placeholderOption);
+
+      options.forEach(option => {
+          const optionElement = document.createElement('option');
+          optionElement.value = option.id;
+          optionElement.textContent = option.label;
+          if (option.id === selectedValue) {
+              optionElement.selected = true;
+          }
+          select.appendChild(optionElement);
+      });
+
+      const addNewOption = document.createElement('option');
+      addNewOption.textContent = 'Adicionar novo...';
+      addNewOption.value = 'add_new';
+      select.appendChild(addNewOption);
+
+      const inputContainer = document.createElement('div');
+      inputContainer.style.cssText = `
+          position: absolute;
+          top: 100%;
+          left: 0;
+          width: 100%;
+          padding: 10px;
+          background-color: white;
+          border: 1px solid #ccc;
+          border-radius: 8px;
+          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+          display: none;
+          flex-direction: column;
+          gap: 5px;
+          z-index: 10;
+      `;
+
+      const newItemInput = document.createElement('input');
+      newItemInput.type = 'text';
+      newItemInput.placeholder = 'Digite o novo item';
+      newItemInput.style.cssText = `
+          flex-grow: 1;
+          padding: 5px;
+          font-size: 14px;
+          border: 1px solid #ccc;
+          border-radius: 4px;
+      `;
+
+      const addButton = document.createElement('button');
+      addButton.textContent = 'Adicionar';
+      addButton.style.cssText = `
+          padding: 5px 10px;
+          font-size: 14px;
+          background-color: #04AA6D;
+          color: white;
+          border: none;
+          border-radius: 4px;
+          cursor: pointer;
+      `;
+
+      addButton.addEventListener('click', () => {
+          const newItem = newItemInput.value.trim();
+          if (newItem) {
+              onAddNew(newItem);
+              const optionElement = document.createElement('option');
+              optionElement.value = new Date().valueOf();
+              optionElement.textContent = newItem;
+              optionElement.selected = true;
+              select.insertBefore(optionElement, addNewOption);
+              inputContainer.style.display = 'none';
+              newItemInput.value = '';
+          }
+      });
+
+      inputContainer.appendChild(newItemInput);
+      inputContainer.appendChild(addButton);
+
+      select.addEventListener('change', (event) => {
+          if (event.target.value === 'add_new') {
+              inputContainer.style.display = 'flex';
+          } else {
+              inputContainer.style.display = 'none';
+              onChange(event);
+          }
+      });
+
+      container.appendChild(select);
+      container.appendChild(inputContainer);
+
+      return container;
+    }
+
 
     generateUniqueKey() {
       return Math.random().toString(36).substring(7); // Generates a random key
