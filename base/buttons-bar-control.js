@@ -1,7 +1,9 @@
 class ButtonsBar extends L.Control {
-    constructor(buttons, options = {}) {
+    constructor(buttons, options = {}, context) {
         super(options);
-        this.buttons = buttons;
+        this.buttons = buttons
+        this.ctx = context
+        this.counterElement = null; // Reference to the counter element
 
         // Inject styles directly into the control
         const style = document.createElement('style');
@@ -42,6 +44,23 @@ class ButtonsBar extends L.Control {
         // Prevent clicks on the control from propagating to the map
         L.DomEvent.disableClickPropagation(container);
 
+        // Create the counter element
+        this.counterElement = document.createElement('div');
+        this.counterElement.style.cssText = `
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            width: 2.5rem; 
+            height: 2.5rem; 
+            font-size: 1.125rem;
+            line-height: 1.75rem; 
+            font-weight: 600; 
+            color: #E1341E; 
+        `;
+        this.counterElement.textContent = this.ctx.layerCount;
+
+        container.appendChild(this.counterElement);
+
         // Create the buttons
         this.buttons.forEach(button => {
             var btn = L.DomUtil.create('button', 'block w-full mb-2 p-2 bg-blue-500 text-white rounded hover:bg-blue-600', container);
@@ -50,5 +69,11 @@ class ButtonsBar extends L.Control {
         });
 
         return container;
+    }
+
+    updateCounter(newCount) {
+        if (this.counterElement) {
+            this.counterElement.textContent = newCount;
+        }
     }
 }

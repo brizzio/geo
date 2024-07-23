@@ -16,6 +16,8 @@ class Map {
         this.dao = new MapTree(this.mapId)
         this.state = this.dao.tree
 
+        
+
         this.map = L.map('map', {
             zoomControl: false // Disable the default zoom control
         }).setView(this.latlngs,10);
@@ -73,11 +75,13 @@ class Map {
             { text: '+ Concorrente', onClick: () => alert('Concorrente Button clicked') },
         ];
 
+        this.control = new ButtonsBar(buttons, { position: 'bottomright' }, this)
+
         // Add the custom control to the map
-       this.map.addControl(new SearchBar(this, { position: 'topleft' }));
+        this.map.addControl(new SearchBar(this, { position: 'topleft' }));
 
         // Add the buttons bar control to the map
-        this.map.addControl(new ButtonsBar(buttons, { position: 'bottomright' }));
+        this.map.addControl(this.control);
 
         
 
@@ -87,6 +91,13 @@ class Map {
 
     }
 
+    get layerCount(){
+        return this._layerCount || 0
+    }
+
+    set layerCount(c){
+        this._layerCount = c
+    }
 
    /*  static onlayerAdd(map, event) {
         console.log('Layer added:', map ,event.layer);
@@ -106,6 +117,7 @@ class Map {
         let tree = null
 
         let singles = this.singles.findBy('tenant_id', this.tenant)
+        
         
         
         //console.log(storedSearchItems)
@@ -162,7 +174,9 @@ class Map {
             })
         }
 
-        console.log('map updated layers' , this.getAllLayers())
+        this.layerCount = this.getAllLayers().length
+        this.control.updateCounter(this.layerCount)
+        console.log('map updated layers' , this.layerCount)
 
 
 
