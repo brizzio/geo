@@ -84,6 +84,7 @@ class Map {
         this.map.addControl(this.control);
 
         
+        
 
         // Restore map state
         this.update();

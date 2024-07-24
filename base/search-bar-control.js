@@ -18,9 +18,13 @@ class SearchBar extends L.Control {
         style.id = 'search-bar-styles';
         style.innerHTML = `
         .search-bar {
+            position: absolute;
+            top: 2px;
+            left: 160px;
+            z-index: 1000;
             display: flex;
             flex-direction: column; /* Align items in column */
-            width: 90vw;
+            width: 350px;
             padding: 10px;
             background-color: rgba(255, 255, 255, 0.4); /* 40% opacity white */
             border-radius: 5px;
@@ -229,6 +233,8 @@ class SearchBar extends L.Control {
         new SearchMarker(this.mapContext, parsed);
         new SearchItems().add(parsed)
     }
+
+    
 
     
 }

@@ -6,7 +6,8 @@ document.addEventListener('DOMContentLoaded', async() =>{
     document.body.style.overflow = 'hidden';
     document.documentElement.style.height = '100%';
     document.body.style.height = '100%';
-
+    
+    document.getElementById('map').appendChild(logoElement())
     const geo = new Geo();
     
     //let position = await geo.getCurrentPosition()
@@ -75,6 +76,45 @@ const retailMap = (latlngs)=>{
 
 }
 
+
+function logoElement() {
+    // Create the container div
+    const container = document.createElement('div');
+    container.style.cssText = `
+        position:absolute;
+        top:12px;
+        left:10px;
+        z-index:999;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        background-color: rgba(255, 255, 255, 0.4); /* 50% opacity white */ 
+        border-radius: 5px;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+        padding:5px;
+    `;
+
+    // Create the image element
+    const img = document.createElement('img');
+    img.src = `/images/nket-logo-black-framed.png`;
+    img.style.cssText = `
+        width: 120px;
+    `;
+    container.appendChild(img);
+
+    // Create the text element
+    const text = document.createElement('span');
+    text.textContent = 'INTELIGÊNCIA DE PREÇOS';
+    text.style.cssText = `
+        font-size: 10px;
+        margin-top: 2px;
+        text-align: center;
+    `;
+    container.appendChild(text);
+
+    // Append the container to the body or another element
+    return container;
+}
 //control bar buttons functions
 
 const clusters = ()=> {
