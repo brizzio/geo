@@ -1,3 +1,7 @@
+https://redketchup.io/favicon-generator
+
+
+
 To calculate a bounding box with a 20-meter side dimension around a given center coordinate, you need to convert meters to degrees. The conversion depends on the latitude due to the curvature of the Earth. At the equator, 1 degree of latitude or longitude is approximately 111,320 meters. However, this changes with latitude, particularly for longitude.
 
 Here's a step-by-step method to calculate the bounding box:

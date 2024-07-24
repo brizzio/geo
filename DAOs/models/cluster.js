@@ -32,6 +32,10 @@ class ClusterModel {
       this.tenant_id=t
     }
 
+    get tenant(){
+      return this.tenant_id
+    }
+
      get data(){
       let obj = Object.assign({},this)
       for (const key in obj) {
@@ -58,7 +62,40 @@ class ClusterModel {
         ))
       
     }
-   
+
+    save(){
+      this.table.create(this.data);
+    }
+
+    update(data){
+      Object.assign(this,data);
+    }
+    
+    static selector(model){
+  
+      let clusters = model.table.findBy('tenant_id', model.tenant)
+      let opt =  clusters.map(item=>(
+        {
+          id:item.id, 
+          label:item.name,
+          description:item.description,
+        }
+      ))
+
+      function handleSelect(event) {
+        const mapped = clusters.reduce((map, c) => map[c.id] =c, {});
+        model.update(mapped[event.target.value]);
+      }
+      
+      function handleAdd(str) {
+        model.generateId()
+        model.name = str
+        
+      }
+      return new FormElement().editableDropdown(opt, model.cluster_id, handleSelect, 'Selecione a bandeira ...', handleAdd);
+       
+      
+    }
     
     showEditForm(title, onUpdate){
 

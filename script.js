@@ -120,7 +120,7 @@ function logoElement() {
 const clusters = ()=> {
     console.log('call clusters');
     
-   new ClusterEditorPage()
+   new ClusterEditorPage('tenant1')
 }
 
 
