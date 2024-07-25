@@ -19,6 +19,8 @@ class ClusterEditorPage extends Sidebar{
         `
         div.appendChild(ClusterModel.selector(this._cluster))
 
+        div.appendChild(ClusterModel.pageForm(this._cluster))
+
         return div
     }
 

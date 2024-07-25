@@ -139,3 +139,100 @@ const getDenormalizedUsers = () => {
 getDenormalizedUsers().then(denormalizedUsers => {
     console.log(JSON.stringify(denormalizedUsers, null, 2));
 });
+
+
+/// firebase
+
+When using Firebase for a web application, you must include your Firebase configuration (which includes your API keys) in the frontend code to initialize the Firebase SDK. However, these keys are meant to be public, and Firebase has security rules and other mechanisms to protect your data, not the keys themselves.
+
+Here are some best practices to secure your Firebase app while using GitHub Pages:
+
+1. Restrict API Key Usage
+Firebase allows you to restrict how your API keys are used. This can include restrictions based on the referrer (website) or specific IP addresses.
+
+Go to the Google Cloud Console:
+
+Navigate to the API & Services > Credentials page.
+Select the API key:
+
+Click on the API key you want to restrict.
+Set restrictions:
+
+Under "Key restrictions," set restrictions appropriate for your use case, such as HTTP referrers (websites) or IP addresses.
+Under "API restrictions," select the APIs that this key can access.
+2. Use Firebase Authentication and Firestore Security Rules
+Ensure that your Firebase security rules are correctly set up to protect your data. This involves configuring Firestore rules to allow only authenticated users to read/write data.
+
+Example Firestore rules:
+
+javascript
+Copiar código
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Rules for authenticated users
+    match /{document=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}
+3. Environment Variables (Build Time)
+If you're using a build tool like Webpack, Vite, or a framework like React or Vue, you can use environment variables to manage your Firebase config.
+
+Create an environment file:
+
+Create a .env file in your project root.
+makefile
+Copiar código
+REACT_APP_FIREBASE_API_KEY=your_api_key
+REACT_APP_FIREBASE_AUTH_DOMAIN=your_auth_domain
+REACT_APP_FIREBASE_PROJECT_ID=your_project_id
+REACT_APP_FIREBASE_STORAGE_BUCKET=your_storage_bucket
+REACT_APP_FIREBASE_MESSAGING_SENDER_ID=your_messaging_sender_id
+REACT_APP_FIREBASE_APP_ID=your_app_id
+Use environment variables in your code:
+
+In your Firebase configuration file:
+javascript
+Copiar código
+const firebaseConfig = {
+  apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
+  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.REACT_APP_FIREBASE_APP_ID
+};
+Build your project:
+
+Build your project to include the environment variables.
+4. Firebase Cloud Functions
+For sensitive operations, consider using Firebase Cloud Functions. This allows you to keep sensitive logic on the server side.
+
+Create a Firebase Cloud Function:
+
+javascript
+Copiar código
+const functions = require('firebase-functions');
+const admin = require('firebase-admin');
+admin.initializeApp();
+
+exports.secureFunction = functions.https.onCall((data, context) => {
+  // Your secure logic here
+  if (!context.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'Request is not authenticated');
+  }
+  return { message: "This is a secure function" };
+});
+Call the Cloud Function from your frontend:
+
+javascript
+Copiar código
+const secureFunction = firebase.functions().httpsCallable('secureFunction');
+secureFunction({ data: 'your data' })
+  .then(result => {
+    console.log(result.data);
+  })
+  .catch(error => {
+    console.error(error);
+  });
+By combining these practices, you can mitigate the risks associated with exposing your Firebase configuration in your frontend code.

@@ -1,16 +1,17 @@
-class ClusterModel {
+class BuyerModel {
     constructor(data={}) {
         
         this._language = 'pt-BR'; // Use a different property to store the language
-        this._collection = new Collection('clusters')
+        this._collection = new Collection('buyers')
         this.id = null,
         this.tenant_id = null,
-        this.code= null,
-        this.name= null,
-        this.description=null,
-
-        this.members=[]
-        this.concurrents=[]
+       
+        buyerEmployeeId=null
+        // nome do responsável pela compra do produto
+        buyerName=null
+        // codigo do fornecedor do produto
+        supplierCode=null
+        
        
         
         Object.assign(this, data)
@@ -143,9 +144,6 @@ class ClusterModel {
 
       content.appendChild(group);
 
-      const taxonomyItem = new TaxonomyItem('pt_BR');
-      const downloadButton = taxonomyItem.generateDownloadButton();
-      content.appendChild(downloadButton);
      
       //button
       let buttonContainer = document.createElement('div');

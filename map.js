@@ -1,5 +1,10 @@
 class Map {
      constructor(tenant, latlngs, state = {}) {
+
+        if (Map.instance) {
+            return Map.instance;
+        }
+
         this.mapId = tenant;
         this.tenant = tenant
         this.latlngs = latlngs || [-23.5676567, -46.6505462]
@@ -16,8 +21,10 @@ class Map {
         this.dao = new MapTree(this.mapId)
         this.state = this.dao.tree
 
-        
-
+        if (typeof  this.map !== 'undefined' &&  this.map !== null) {
+            this.map.remove(); // Remove the existing map instance
+          }
+        console.log('map constructor..')
         this.map = L.map('map', {
             zoomControl: false // Disable the default zoom control
         }).setView(this.latlngs,10);
@@ -89,6 +96,7 @@ class Map {
         // Restore map state
         this.update();
 
+        Map.instance = this;
 
     }
 

@@ -603,6 +603,7 @@ class FormElement {
         div.appendChild(button);
         return div;
     }
+    
     editableDropdown(options, selectedValue, onChange, placeholder = 'Selecione uma opção...', onAddNew) {
       const container = document.createElement('div');
       container.style.cssText = `

@@ -1,13 +1,44 @@
-class ClusterModel {
+class ProductModel {
     constructor(data={}) {
         
         this._language = 'pt-BR'; // Use a different property to store the language
-        this._collection = new Collection('clusters')
+        this._collection = new Collection('products')
         this.id = null,
         this.tenant_id = null,
-        this.code= null,
-        this.name= null,
-        this.description=null,
+        // codigo unico do produto
+        this.internal_id=null
+        this.name=null
+        this.display_name=null
+        // descrição do item
+        this.description=null
+        this.excerpt=null
+
+        // MARCA
+        this.brand=null
+        // GRUPO_PRODUTO
+        this.sub_brand=null
+        // LINHA_PRODUTO
+        this.product_line=null
+        this.product_subdivision=null
+
+        //manufacturer
+        this.manufacturer_id=null
+        // registro do comprador do produto
+        this.buyer_id=null
+        // id do fornecedor do produto
+        this.supplier_id=null
+        
+        this.ean=null
+        // codigo ncm do produto
+        this.ncm_code=null
+        
+        
+        // parte numerica da unidade de venda da embalagem
+        this.saleQuantity=null
+        // unidade de venda do produto kg, g, ml, litro, por padrao o sistema adota Kg pra peso e litro pra volume
+        this.saleOneness=null
+        this.productImage=null
+        this.productThumb=null
 
         this.members=[]
         this.concurrents=[]
@@ -143,9 +174,6 @@ class ClusterModel {
 
       content.appendChild(group);
 
-      const taxonomyItem = new TaxonomyItem('pt_BR');
-      const downloadButton = taxonomyItem.generateDownloadButton();
-      content.appendChild(downloadButton);
      
       //button
       let buttonContainer = document.createElement('div');

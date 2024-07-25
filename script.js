@@ -22,8 +22,7 @@ document.addEventListener('DOMContentLoaded', async() =>{
 
     //const imageEditor = new ImageEditor();
     
-
-    console.log('map', map);
+    
 
     
 
@@ -67,6 +66,7 @@ async function reverse(lat, lon) {
 const retailMap = (latlngs)=>{
 
     const retailMap = new Map('tenant1', latlngs)
+
 
     
 
