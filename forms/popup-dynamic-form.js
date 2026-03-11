@@ -135,3 +135,9 @@ class PopupDynamicForm {
         }
     }
 }
+if (typeof window !== 'undefined') {
+  window.PopupDynamicForm = PopupDynamicForm;
+}
+
+
+

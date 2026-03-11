@@ -106,3 +106,10 @@ class Collection {
 
    
 }
+
+if (typeof window !== 'undefined') {
+  window.Collection = Collection;
+}
+
+
+

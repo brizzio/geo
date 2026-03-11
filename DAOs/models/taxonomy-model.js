@@ -233,3 +233,11 @@ class TaxonomyItem{
 
 
 }
+if (typeof window !== 'undefined') {
+  window.TaxonomyModel = TaxonomyModel;
+  window.TaxonomyItem = TaxonomyItem;
+  window.Label = Label;
+}
+
+
+

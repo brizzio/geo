@@ -173,3 +173,9 @@ class BranchStoreModel extends CompanyModel{
 
 
 }
+if (typeof window !== 'undefined') {
+  window.BranchStoreModel = BranchStoreModel;
+}
+
+
+

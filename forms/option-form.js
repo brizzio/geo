@@ -79,3 +79,10 @@ class OptionForm {
         }
     }
 }
+
+if (typeof window !== 'undefined') {
+  window.OptionForm = OptionForm;
+}
+
+
+

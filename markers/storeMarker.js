@@ -47,3 +47,9 @@ class StoreMarker extends Marker {
 
       
 }
+if (typeof window !== 'undefined') {
+  window.StoreMarker = StoreMarker;
+}
+
+
+

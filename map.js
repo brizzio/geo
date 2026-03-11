@@ -1,8 +1,8 @@
-class Map {
+class RetailMap {
      constructor(tenant, latlngs, state = {}) {
 
-        if (Map.instance) {
-            return Map.instance;
+        if (RetailMap.instance) {
+            return RetailMap.instance;
         }
 
         this.mapId = tenant;
@@ -82,13 +82,20 @@ class Map {
             { text: '+ Concorrente', onClick: () => alert('Concorrente Button clicked') },
         ];
 
-        this.control = new ButtonsBar(buttons, { position: 'bottomright' }, this)
+        const useReactControls = typeof window !== 'undefined' && window.__geoUseReactControls === true;
+
+        const useReactSearch = typeof window !== 'undefined' && window.__geoUseReactSearch === true;
 
         // Add the custom control to the map
-        this.map.addControl(new SearchBar(this, { position: 'topleft' }));
+        if (!useReactSearch) {
+            this.map.addControl(new SearchBar(this, { position: 'topleft' }));
+        }
 
-        // Add the buttons bar control to the map
-        this.map.addControl(this.control);
+        if (!useReactControls) {
+            this.control = new ButtonsBar(buttons, { position: 'bottomright' }, this);
+            // Add the buttons bar control to the map
+            this.map.addControl(this.control);
+        }
 
         
         
@@ -96,7 +103,7 @@ class Map {
         // Restore map state
         this.update();
 
-        Map.instance = this;
+        RetailMap.instance = this;
 
     }
 
@@ -184,7 +191,9 @@ class Map {
         }
 
         this.layerCount = this.getAllLayers().length
-        this.control.updateCounter(this.layerCount)
+        if (this.control && typeof this.control.updateCounter === 'function') {
+            this.control.updateCounter(this.layerCount)
+        }
         console.log('map updated layers' , this.layerCount)
 
 
@@ -199,8 +208,22 @@ class Map {
         this.contextMenu.createContextMenu(top, left);
     }
 
+    openReactForm(formKey) {
+        const handlers = typeof window !== 'undefined' ? window.__geoOpenForms : null;
+        const open = handlers ? handlers[formKey] : null;
+        if (typeof open === 'function') {
+            open();
+            this.contextMenu?.hideContextMenus?.();
+            return true;
+        }
+        return false;
+    }
+
 
     showHeadquarterForm = () => {
+        if (this.openReactForm('headquarter')) {
+            return;
+        }
         console.log('Button clicked');
         let hq = new HeadquarterModel()
         hq.language='pt-BR'
@@ -223,6 +246,9 @@ class Map {
 
 
     showBannerForm = () => {
+        if (this.openReactForm('banner')) {
+            return;
+        }
         console.log('Add Banner Button clicked');
         const banner = new BannerModel()
         
@@ -262,6 +288,9 @@ class Map {
     }
 
     async addBanner(){
+        if (this.openReactForm('banner')) {
+            return;
+        }
         let b = new BannerModel()
         console.log('vai adicionar banner', b)
         b.tenant = this.tenant
@@ -291,6 +320,9 @@ class Map {
     }
 
     async addHq(){
+        if (this.openReactForm('headquarter')) {
+            return;
+        }
      
         let h = new HeadquarterModel()
         console.log('vai adicionar matriz', h)
@@ -330,6 +362,9 @@ class Map {
     }
 
     addHqStore(){
+        if (this.openReactForm('headquarterStore')) {
+            return;
+        }
         let instance = new HeadquarterStoreModel()
         console.log('vai adicionar loja matriz', instance)
         instance.tenant = this.tenant
@@ -368,6 +403,9 @@ class Map {
     }
 
     addBranchStore(){
+        if (this.openReactForm('branchStore')) {
+            return;
+        }
         console.log('vai adicionar loja na rede')
         let instance = new BranchStoreModel()
         console.log('vai adicionar loja de rede', instance)
@@ -411,6 +449,9 @@ class Map {
     }
 
     addConcurrentStore(){
+        if (this.openReactForm('concurrentStore')) {
+            return;
+        }
         
         let instance = new ConcurrentStoreModel()
         console.log('vai adicionar ConcurrentStore', instance)
@@ -422,6 +463,9 @@ class Map {
     }
 
     addCluster(){
+        if (this.openReactForm('cluster')) {
+            return;
+        }
         let instance = new ClusterModel()
         console.log('vai adicionar Cluster', instance)
         instance.tenant = this.tenant
@@ -642,6 +686,10 @@ class Map {
         return layers;
     }
 
-    
+
+}
+
+if (typeof window !== 'undefined') {
+    window.RetailMap = RetailMap;
 }
 

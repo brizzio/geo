@@ -135,3 +135,9 @@ class BannerModel {
 
 
 }
+if (typeof window !== 'undefined') {
+  window.BannerModel = BannerModel;
+}
+
+
+

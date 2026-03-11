@@ -134,3 +134,9 @@ class HeadquarterStoreModel extends CompanyModel{
 
 
 }
+if (typeof window !== 'undefined') {
+  window.HeadquarterStoreModel = HeadquarterStoreModel;
+}
+
+
+

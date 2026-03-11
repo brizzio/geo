@@ -261,3 +261,10 @@ class BranchMarker {
 
 
 
+
+if (typeof window !== 'undefined') {
+  window.BranchMarker = BranchMarker;
+}
+
+
+

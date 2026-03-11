@@ -292,3 +292,10 @@ class MarkerNew {
         return [minLat, minLon, maxLat, maxLon];
     }
 }
+
+if (typeof window !== 'undefined') {
+  window.MarkerNew = MarkerNew;
+}
+
+
+

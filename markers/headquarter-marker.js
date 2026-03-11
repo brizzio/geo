@@ -102,3 +102,9 @@ class HeadquarterMarker extends MarkerNew {
 
 
 }
+if (typeof window !== 'undefined') {
+  window.HeadquarterMarker = HeadquarterMarker;
+}
+
+
+

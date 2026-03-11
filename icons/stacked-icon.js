@@ -110,3 +110,10 @@ class StackedIcon {
         });
     }
 }
+
+if (typeof window !== 'undefined') {
+  window.StackedIcon = StackedIcon;
+}
+
+
+

@@ -108,3 +108,9 @@ class HeadquarterStoreMarker extends MarkerNew {
 
 
 }
+if (typeof window !== 'undefined') {
+  window.HeadquarterStoreMarker = HeadquarterStoreMarker;
+}
+
+
+

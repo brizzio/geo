@@ -155,3 +155,10 @@ class LocalStorageManager {
 }
 
 
+
+if (typeof window !== 'undefined') {
+  window.LocalStorageManager = LocalStorageManager;
+}
+
+
+

@@ -140,3 +140,10 @@ class Marker {
     }
 
 }
+
+if (typeof window !== 'undefined') {
+  window.Marker = Marker;
+}
+
+
+

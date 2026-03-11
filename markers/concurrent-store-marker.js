@@ -109,3 +109,9 @@ class ConcurrentStoreMarker extends MarkerNew {
 
 
 }
+if (typeof window !== 'undefined') {
+  window.ConcurrentStoreMarker = ConcurrentStoreMarker;
+}
+
+
+

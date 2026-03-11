@@ -1100,3 +1100,13 @@ class ImageCropper {
       this.cropContainer.style.display = 'none';
   }
 }
+
+if (typeof window !== 'undefined') {
+  window.FormElement = FormElement;
+  window.FORM = FORM;
+  window.PopupForm = PopupForm;
+  window.ImageCropper = ImageCropper;
+}
+
+
+

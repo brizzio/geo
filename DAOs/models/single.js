@@ -70,3 +70,9 @@ class Single extends CompanyModel{
 
 
 }
+if (typeof window !== 'undefined') {
+  window.Single = Single;
+}
+
+
+

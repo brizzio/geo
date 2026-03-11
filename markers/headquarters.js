@@ -230,3 +230,9 @@ class Headquarter extends Marker {
 
       
 }
+if (typeof window !== 'undefined') {
+  window.Headquarter = Headquarter;
+}
+
+
+

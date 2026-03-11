@@ -205,3 +205,9 @@ class ConcurrentStoreModel extends CompanyModel{
 
 
 }
+if (typeof window !== 'undefined') {
+  window.ConcurrentStoreModel = ConcurrentStoreModel;
+}
+
+
+

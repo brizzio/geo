@@ -432,3 +432,7 @@ const showPopupBannerForm = async (mapctx, marker) => {
 
     console.log('Form rendered');
 }; 
+
+if (typeof window !== 'undefined') {
+    window.SearchMarker = SearchMarker;
+}

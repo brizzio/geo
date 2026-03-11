@@ -13,12 +13,20 @@ class SearchMarkIcon {
         const container = document.createElement('div');
         container.className = 'custom-marker';
         container.style.position = 'relative';
+        container.style.display = 'inline-flex';
+        container.style.alignItems = 'center';
+        container.style.justifyContent = 'center';
 
-        // Create FontAwesome icon element
-        const iconElement = document.createElement('i');
-        iconElement.className = 'fas fa-circle';
-        iconElement.style.fontSize = '22px';
-        iconElement.style.color = this.isSelected ? 'green' : (this.isVisited ? 'blue' : this.color);
+        // Use a plain styled dot so marker rendering does not depend on icon fonts.
+        const iconElement = document.createElement('span');
+        iconElement.className = 'marker-dot';
+        iconElement.style.display = 'inline-block';
+        iconElement.style.width = '16px';
+        iconElement.style.height = '16px';
+        iconElement.style.borderRadius = '50%';
+        iconElement.style.border = '2px solid #fff';
+        iconElement.style.boxShadow = '0 0 0 1px rgba(0,0,0,0.25)';
+        iconElement.style.backgroundColor = this.isSelected ? 'green' : (this.isVisited ? 'blue' : this.color);
         iconElement.style.opacity = this.isSelected ? '0.8' : this.opacity;
 
         // Create span for the marker name
@@ -68,8 +76,8 @@ class SearchMarkIcon {
         const container = document.createElement('div');
         container.innerHTML = this.element.options.html;
 
-        const iconElement = container.querySelector('i');
-        iconElement.style.color = isSelected ? 'green' : (isVisited ? 'blue' : this.color);
+        const iconElement = container.querySelector('.marker-dot');
+        iconElement.style.backgroundColor = isSelected ? 'green' : (isVisited ? 'blue' : this.color);
         iconElement.style.opacity = isSelected ? '0.8' : this.opacity;
 
         //console.log('updating mark', isSelected, container.innerHTML);
@@ -80,3 +88,10 @@ class SearchMarkIcon {
         });
     }
 }
+
+if (typeof window !== 'undefined') {
+  window.SearchMarkIcon = SearchMarkIcon;
+}
+
+
+

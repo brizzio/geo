@@ -260,3 +260,9 @@ class ClusterModel {
 
 
 }
+if (typeof window !== 'undefined') {
+  window.ClusterModel = ClusterModel;
+}
+
+
+

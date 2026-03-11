@@ -108,3 +108,9 @@ class BranchStoreMarker extends MarkerNew {
 
 
 }
+if (typeof window !== 'undefined') {
+  window.BranchStoreMarker = BranchStoreMarker;
+}
+
+
+

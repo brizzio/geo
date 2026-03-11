@@ -1,0 +1,689 @@
+"use client";
+
+import { useCallback } from "react";
+import {
+  createClusterModel,
+  createNetworkModel,
+  createPriceResearchModel,
+  createRetailBannerModel,
+  createStoreModel,
+  createTenantModel,
+  STORE_KINDS
+} from "../models";
+import {
+  DOMAIN_DELETE_BANNER,
+  DOMAIN_DELETE_CLUSTER,
+  DOMAIN_DELETE_NETWORK,
+  DOMAIN_DELETE_PRICE_RESEARCH,
+  DOMAIN_DELETE_STORE,
+  DOMAIN_DELETE_TENANT,
+  DOMAIN_SET_ACTIVE_TENANT,
+  DOMAIN_UPSERT_BANNER,
+  DOMAIN_UPSERT_CLUSTER,
+  DOMAIN_UPSERT_NETWORK,
+  DOMAIN_UPSERT_PRICE_RESEARCH,
+  DOMAIN_UPSERT_STORE,
+  DOMAIN_UPSERT_TENANT
+} from "../state/action-types";
+import { useDomainState } from "../state/domain-state";
+import {
+  selectClusterById,
+  selectClustersByTenant,
+  selectCompetitorStoreIdsFromCluster,
+  selectNetworksByTenant,
+  selectPriceResearchesByTenant,
+  selectStoresByTenant,
+  selectBannersByTenant,
+  selectStoreById
+} from "../state/selectors";
+
+const SNAPSHOT_VERSION = 1;
+
+function toBatchItems(payload) {
+  if (Array.isArray(payload)) {
+    return payload;
+  }
+  if (payload && Array.isArray(payload.items)) {
+    return payload.items;
+  }
+  throw new Error("Arquivo JSON invalido. Use um array ou objeto com campo items[].");
+}
+
+function runBatch(items, callback) {
+  const list = Array.isArray(items) ? items : [];
+  let successCount = 0;
+  const errors = [];
+
+  list.forEach((item, index) => {
+    try {
+      callback(item, index);
+      successCount += 1;
+    } catch (error) {
+      errors.push({
+        index,
+        message: error?.message || "Erro desconhecido"
+      });
+    }
+  });
+
+  return {
+    total: list.length,
+    success: successCount,
+    failed: errors.length,
+    errors
+  };
+}
+
+function ensureTenantExists(state, tenantId) {
+  const found = (state.tenants || []).some((item) => String(item.id) === String(tenantId));
+  if (!found) {
+    throw new Error("Tenant informado nao existe.");
+  }
+}
+
+function ensureNetworkExists(state, networkId, tenantId) {
+  const network = (state.networks || []).find((item) => String(item.id) === String(networkId));
+  if (!network) {
+    throw new Error("Rede informada nao existe.");
+  }
+  if (String(network.tenant_id) !== String(tenantId)) {
+    throw new Error("Rede informada nao pertence ao tenant.");
+  }
+  return network;
+}
+
+function ensureBannerExists(state, bannerId, tenantId) {
+  const banner = (state.retailBanners || []).find((item) => String(item.id) === String(bannerId));
+  if (!banner) {
+    throw new Error("Bandeira informada nao existe.");
+  }
+  if (String(banner.tenant_id) !== String(tenantId)) {
+    throw new Error("Bandeira informada nao pertence ao tenant.");
+  }
+  return banner;
+}
+
+function normalizeComparableName(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+}
+
+function validateImportTenantSnapshot(snapshot) {
+  if (!snapshot || typeof snapshot !== "object") {
+    throw new Error("Arquivo de backup invalido.");
+  }
+  if (!snapshot.tenant || typeof snapshot.tenant !== "object") {
+    throw new Error("Backup sem tenant principal.");
+  }
+  if (!Array.isArray(snapshot.networks)) {
+    throw new Error("Backup sem lista de redes valida.");
+  }
+  if (!Array.isArray(snapshot.retailBanners)) {
+    throw new Error("Backup sem lista de bandeiras valida.");
+  }
+  if (!Array.isArray(snapshot.stores)) {
+    throw new Error("Backup sem lista de lojas valida.");
+  }
+  if (!Array.isArray(snapshot.clusters)) {
+    throw new Error("Backup sem lista de clusters valida.");
+  }
+  if (!Array.isArray(snapshot.priceResearches)) {
+    throw new Error("Backup sem lista de pesquisas valida.");
+  }
+}
+
+export function useDomainActions() {
+  const { state, dispatch } = useDomainState();
+
+  const setActiveTenant = useCallback(
+    (tenantId) => {
+      dispatch({ type: DOMAIN_SET_ACTIVE_TENANT, payload: tenantId || null });
+    },
+    [dispatch]
+  );
+
+  const saveTenant = useCallback(
+    (values) => {
+      const tenant = createTenantModel(values);
+      dispatch({ type: DOMAIN_UPSERT_TENANT, payload: tenant });
+      return tenant;
+    },
+    [dispatch]
+  );
+
+  const removeTenant = useCallback(
+    (tenantId) => {
+      dispatch({ type: DOMAIN_DELETE_TENANT, payload: tenantId });
+    },
+    [dispatch]
+  );
+
+  const saveNetwork = useCallback(
+    (values) => {
+      const network = createNetworkModel(values);
+      ensureTenantExists(state, network.tenant_id);
+      dispatch({ type: DOMAIN_UPSERT_NETWORK, payload: network });
+      return network;
+    },
+    [dispatch, state]
+  );
+
+  const removeNetwork = useCallback(
+    (networkId) => {
+      dispatch({ type: DOMAIN_DELETE_NETWORK, payload: networkId });
+    },
+    [dispatch]
+  );
+
+  const saveRetailBanner = useCallback(
+    (values) => {
+      const banner = createRetailBannerModel(values);
+      ensureTenantExists(state, banner.tenant_id);
+      ensureNetworkExists(state, banner.network_id, banner.tenant_id);
+      dispatch({ type: DOMAIN_UPSERT_BANNER, payload: banner });
+      return banner;
+    },
+    [dispatch, state]
+  );
+
+  const removeRetailBanner = useCallback(
+    (bannerId) => {
+      dispatch({ type: DOMAIN_DELETE_BANNER, payload: bannerId });
+    },
+    [dispatch]
+  );
+
+  const saveStore = useCallback(
+    (values) => {
+      const store = createStoreModel(values);
+      ensureTenantExists(state, store.tenant_id);
+      const network = ensureNetworkExists(state, store.network_id, store.tenant_id);
+
+      if (store.kind === STORE_KINDS.OWN) {
+        const banner = ensureBannerExists(state, store.banner_id, store.tenant_id);
+        if (String(banner.network_id) !== String(network.id)) {
+          throw new Error("A bandeira deve pertencer a rede da loja.");
+        }
+      }
+
+      if (store.kind === STORE_KINDS.COMPETITOR) {
+        const competitorBannerName = normalizeComparableName(store.competitor_banner_name);
+        const networkBannerNames = (state.retailBanners || [])
+          .filter(
+            (item) =>
+              String(item.tenant_id) === String(store.tenant_id) &&
+              String(item.network_id) === String(store.network_id)
+          )
+          .map((item) => normalizeComparableName(item.name));
+
+        if (networkBannerNames.includes(competitorBannerName)) {
+          throw new Error(
+            "Loja concorrente deve usar bandeira diferente das bandeiras cadastradas na rede."
+          );
+        }
+      }
+
+      dispatch({ type: DOMAIN_UPSERT_STORE, payload: store });
+      return store;
+    },
+    [dispatch, state]
+  );
+
+  const removeStore = useCallback(
+    (storeId) => {
+      dispatch({ type: DOMAIN_DELETE_STORE, payload: storeId });
+    },
+    [dispatch]
+  );
+
+  const saveCluster = useCallback(
+    (values) => {
+      const cluster = createClusterModel(values);
+      ensureTenantExists(state, cluster.tenant_id);
+      const network = ensureNetworkExists(state, cluster.network_id, cluster.tenant_id);
+      const banner = ensureBannerExists(state, cluster.banner_id, cluster.tenant_id);
+      if (String(banner.network_id) !== String(network.id)) {
+        throw new Error("A bandeira do cluster deve pertencer a rede selecionada.");
+      }
+
+      const ownStores = cluster.own_store_ids.map((id) => selectStoreById(state, id));
+      const hasInvalidOwnStore = ownStores.some(
+        (store) =>
+          !store ||
+          store.kind !== STORE_KINDS.OWN ||
+          String(store.tenant_id) !== String(cluster.tenant_id) ||
+          String(store.network_id) !== String(cluster.network_id) ||
+          String(store.banner_id) !== String(cluster.banner_id)
+      );
+      if (hasInvalidOwnStore) {
+        throw new Error("Lojas proprias do cluster precisam ser da rede/bandeira selecionadas.");
+      }
+      if (cluster.own_store_ids.length === 0) {
+        throw new Error("Cluster deve possuir ao menos 1 loja propria.");
+      }
+
+      const levelIds = new Set((cluster.levels || []).map((level) => String(level.id)));
+      if (levelIds.size === 0) {
+        throw new Error("Cluster deve possuir niveis de concorrencia.");
+      }
+      const hasInvalidLevel = (cluster.competitor_groups || []).some(
+        (group) => !levelIds.has(String(group.level_id))
+      );
+      if (hasInvalidLevel) {
+        throw new Error("Cluster possui nivel concorrente invalido.");
+      }
+
+      const competitorStoreIds = (cluster.competitor_groups || []).flatMap((group) => group.store_ids || []);
+      const hasInvalidCompetitor = competitorStoreIds.some((storeId) => {
+        const store = selectStoreById(state, storeId);
+        return (
+          !store ||
+          store.kind !== STORE_KINDS.COMPETITOR ||
+          String(store.tenant_id) !== String(cluster.tenant_id)
+        );
+      });
+      if (hasInvalidCompetitor) {
+        throw new Error("Cluster possui loja concorrente invalida.");
+      }
+
+      dispatch({ type: DOMAIN_UPSERT_CLUSTER, payload: cluster });
+      return cluster;
+    },
+    [dispatch, state]
+  );
+
+  const removeCluster = useCallback(
+    (clusterId) => {
+      dispatch({ type: DOMAIN_DELETE_CLUSTER, payload: clusterId });
+    },
+    [dispatch]
+  );
+
+  const savePriceResearch = useCallback(
+    (values) => {
+      const research = createPriceResearchModel(values);
+      ensureTenantExists(state, research.tenant_id);
+      const cluster = selectClusterById(state, research.cluster_id);
+      if (!cluster) {
+        throw new Error("Cluster da pesquisa nao existe.");
+      }
+      if (String(cluster.tenant_id) !== String(research.tenant_id)) {
+        throw new Error("Cluster da pesquisa nao pertence ao tenant.");
+      }
+
+      const validCompetitorIds = new Set(selectCompetitorStoreIdsFromCluster(cluster));
+      const hasInvalidCompetitor = (research.competitor_store_ids || []).some(
+        (storeId) => !validCompetitorIds.has(String(storeId))
+      );
+      if (hasInvalidCompetitor) {
+        throw new Error("Pesquisa possui concorrente fora do cluster.");
+      }
+
+      dispatch({ type: DOMAIN_UPSERT_PRICE_RESEARCH, payload: research });
+      return research;
+    },
+    [dispatch, state]
+  );
+
+  const removePriceResearch = useCallback(
+    (researchId) => {
+      dispatch({ type: DOMAIN_DELETE_PRICE_RESEARCH, payload: researchId });
+    },
+    [dispatch]
+  );
+
+  const exportTenantSnapshot = useCallback(
+    (tenantIdInput) => {
+      const tenantId = tenantIdInput || state.meta?.activeTenantId;
+      ensureTenantExists(state, tenantId);
+      const tenant = (state.tenants || []).find((item) => String(item.id) === String(tenantId));
+      const clusters = selectClustersByTenant(state, tenantId);
+
+      const payload = {
+        schema_version: SNAPSHOT_VERSION,
+        exported_at: new Date().toISOString(),
+        tenant,
+        networks: selectNetworksByTenant(state, tenantId),
+        retailBanners: selectBannersByTenant(state, tenantId),
+        stores: selectStoresByTenant(state, tenantId),
+        clusterLevels: [],
+        clusters,
+        priceResearches: selectPriceResearchesByTenant(state, tenantId)
+      };
+
+      return payload;
+    },
+    [state]
+  );
+
+  const exportTenantsDataset = useCallback(() => {
+    return {
+      schema_version: SNAPSHOT_VERSION,
+      dataset: "tenants",
+      exported_at: new Date().toISOString(),
+      items: state.tenants || []
+    };
+  }, [state.tenants]);
+
+  const exportNetworksDataset = useCallback(
+    (tenantIdInput) => {
+      const tenantId = tenantIdInput || state.meta?.activeTenantId;
+      ensureTenantExists(state, tenantId);
+      return {
+        schema_version: SNAPSHOT_VERSION,
+        dataset: "networks",
+        tenant_id: tenantId,
+        exported_at: new Date().toISOString(),
+        items: selectNetworksByTenant(state, tenantId)
+      };
+    },
+    [state]
+  );
+
+  const exportRetailBannersDataset = useCallback(
+    (tenantIdInput) => {
+      const tenantId = tenantIdInput || state.meta?.activeTenantId;
+      ensureTenantExists(state, tenantId);
+      return {
+        schema_version: SNAPSHOT_VERSION,
+        dataset: "retail_banners",
+        tenant_id: tenantId,
+        exported_at: new Date().toISOString(),
+        items: selectBannersByTenant(state, tenantId)
+      };
+    },
+    [state]
+  );
+
+  const exportStoresDataset = useCallback(
+    (tenantIdInput, kind = null) => {
+      const tenantId = tenantIdInput || state.meta?.activeTenantId;
+      ensureTenantExists(state, tenantId);
+      const items = selectStoresByTenant(state, tenantId).filter((store) =>
+        kind ? store.kind === kind : true
+      );
+
+      return {
+        schema_version: SNAPSHOT_VERSION,
+        dataset: kind === STORE_KINDS.COMPETITOR ? "competitor_stores" : kind === STORE_KINDS.OWN ? "own_stores" : "stores",
+        tenant_id: tenantId,
+        exported_at: new Date().toISOString(),
+        items
+      };
+    },
+    [state]
+  );
+
+  const exportPriceResearchesDataset = useCallback(
+    (tenantIdInput) => {
+      const tenantId = tenantIdInput || state.meta?.activeTenantId;
+      ensureTenantExists(state, tenantId);
+      return {
+        schema_version: SNAPSHOT_VERSION,
+        dataset: "price_researches",
+        tenant_id: tenantId,
+        exported_at: new Date().toISOString(),
+        items: selectPriceResearchesByTenant(state, tenantId)
+      };
+    },
+    [state]
+  );
+
+  const saveTenantsBatch = useCallback(
+    (payload) => {
+      const items = toBatchItems(payload);
+      return runBatch(items, (item) => {
+        saveTenant(item);
+      });
+    },
+    [saveTenant]
+  );
+
+  const saveNetworksBatch = useCallback(
+    (tenantIdInput, payload) => {
+      const tenantId = tenantIdInput || state.meta?.activeTenantId;
+      ensureTenantExists(state, tenantId);
+      const items = toBatchItems(payload);
+      return runBatch(items, (item) => {
+        saveNetwork({ ...item, tenant_id: tenantId });
+      });
+    },
+    [saveNetwork, state]
+  );
+
+  const saveRetailBannersBatch = useCallback(
+    (tenantIdInput, payload) => {
+      const tenantId = tenantIdInput || state.meta?.activeTenantId;
+      ensureTenantExists(state, tenantId);
+      const items = toBatchItems(payload);
+      return runBatch(items, (item) => {
+        saveRetailBanner({ ...item, tenant_id: tenantId });
+      });
+    },
+    [saveRetailBanner, state]
+  );
+
+  const saveStoresBatch = useCallback(
+    (tenantIdInput, payload, kindOverride = null) => {
+      const tenantId = tenantIdInput || state.meta?.activeTenantId;
+      ensureTenantExists(state, tenantId);
+      const items = toBatchItems(payload);
+      return runBatch(items, (item) => {
+        saveStore({
+          ...item,
+          tenant_id: tenantId,
+          kind: kindOverride || item.kind || STORE_KINDS.OWN
+        });
+      });
+    },
+    [saveStore, state]
+  );
+
+  const savePriceResearchesBatch = useCallback(
+    (tenantIdInput, payload) => {
+      const tenantId = tenantIdInput || state.meta?.activeTenantId;
+      ensureTenantExists(state, tenantId);
+      const items = toBatchItems(payload);
+      return runBatch(items, (item) => {
+        savePriceResearch({ ...item, tenant_id: tenantId });
+      });
+    },
+    [savePriceResearch, state]
+  );
+
+  const importTenantSnapshot = useCallback(
+    (snapshotInput) => {
+      validateImportTenantSnapshot(snapshotInput);
+
+      const importedTenant = createTenantModel(snapshotInput.tenant);
+      const tenantId = importedTenant.id;
+
+      const networks = snapshotInput.networks.map((item) =>
+        createNetworkModel({ ...item, tenant_id: tenantId })
+      );
+      const networkIds = new Set(networks.map((item) => String(item.id)));
+
+      const banners = snapshotInput.retailBanners.map((item) =>
+        createRetailBannerModel({ ...item, tenant_id: tenantId })
+      );
+      const hasBannerOutOfNetwork = banners.some((item) => !networkIds.has(String(item.network_id)));
+      if (hasBannerOutOfNetwork) {
+        throw new Error("Backup possui bandeira vinculada a rede inexistente.");
+      }
+      const bannerIds = new Set(banners.map((item) => String(item.id)));
+
+      const stores = snapshotInput.stores.map((item) =>
+        createStoreModel({ ...item, tenant_id: tenantId })
+      );
+      const hasStoreOutOfNetwork = stores.some((item) => !networkIds.has(String(item.network_id)));
+      if (hasStoreOutOfNetwork) {
+        throw new Error("Backup possui loja vinculada a rede inexistente.");
+      }
+      const hasStoreOutOfBanner = stores.some(
+        (item) => item.kind === STORE_KINDS.OWN && !bannerIds.has(String(item.banner_id))
+      );
+      if (hasStoreOutOfBanner) {
+        throw new Error("Backup possui loja vinculada a bandeira inexistente.");
+      }
+      const bannerNamesByNetwork = new Map();
+      banners.forEach((banner) => {
+        const key = String(banner.network_id);
+        const current = bannerNamesByNetwork.get(key) || new Set();
+        current.add(normalizeComparableName(banner.name));
+        bannerNamesByNetwork.set(key, current);
+      });
+      const hasCompetitorUsingOwnBanner = stores.some((item) => {
+        if (item.kind !== STORE_KINDS.COMPETITOR) {
+          return false;
+        }
+        const networkBannerNames = bannerNamesByNetwork.get(String(item.network_id)) || new Set();
+        return networkBannerNames.has(normalizeComparableName(item.competitor_banner_name));
+      });
+      if (hasCompetitorUsingOwnBanner) {
+        throw new Error(
+          "Backup possui loja concorrente com bandeira igual a uma bandeira cadastrada na rede."
+        );
+      }
+      const storeMap = new Map(stores.map((item) => [String(item.id), item]));
+
+      const legacyClusterLevels = Array.isArray(snapshotInput.clusterLevels)
+        ? snapshotInput.clusterLevels
+        : [];
+
+      const clusters = snapshotInput.clusters.map((item) => {
+        const hasOwnLevels = Array.isArray(item?.levels) && item.levels.length > 0;
+        return createClusterModel({
+          ...item,
+          tenant_id: tenantId,
+          levels: hasOwnLevels ? item.levels : legacyClusterLevels
+        });
+      });
+
+      clusters.forEach((cluster) => {
+        if (!networkIds.has(String(cluster.network_id))) {
+          throw new Error("Backup possui cluster vinculado a rede inexistente.");
+        }
+        if (!bannerIds.has(String(cluster.banner_id))) {
+          throw new Error("Backup possui cluster vinculado a bandeira inexistente.");
+        }
+
+        if (!cluster.own_store_ids?.length) {
+          throw new Error("Backup possui cluster sem lojas proprias.");
+        }
+
+        cluster.own_store_ids.forEach((storeId) => {
+          const store = storeMap.get(String(storeId));
+          if (!store || store.kind !== STORE_KINDS.OWN) {
+            throw new Error("Backup possui cluster com loja propria invalida.");
+          }
+          if (String(store.network_id) !== String(cluster.network_id)) {
+            throw new Error("Backup possui loja propria fora da rede do cluster.");
+          }
+          if (String(store.banner_id) !== String(cluster.banner_id)) {
+            throw new Error("Backup possui loja propria fora da bandeira do cluster.");
+          }
+        });
+
+        const levelIds = new Set((cluster.levels || []).map((level) => String(level.id)));
+        (cluster.competitor_groups || []).forEach((group) => {
+          if (!levelIds.has(String(group.level_id))) {
+            throw new Error("Backup possui cluster com nivel inexistente.");
+          }
+          (group.store_ids || []).forEach((storeId) => {
+            const store = storeMap.get(String(storeId));
+            if (!store || store.kind !== STORE_KINDS.COMPETITOR) {
+              throw new Error("Backup possui cluster com concorrente invalido.");
+            }
+          });
+        });
+      });
+
+      const clusterMap = new Map(clusters.map((item) => [String(item.id), item]));
+      const researches = snapshotInput.priceResearches.map((item) =>
+        createPriceResearchModel({ ...item, tenant_id: tenantId })
+      );
+
+      researches.forEach((research) => {
+        const cluster = clusterMap.get(String(research.cluster_id));
+        if (!cluster) {
+          throw new Error("Backup possui pesquisa vinculada a cluster inexistente.");
+        }
+        const validCompetitors = new Set(selectCompetitorStoreIdsFromCluster(cluster));
+        (research.competitor_store_ids || []).forEach((storeId) => {
+          if (!validCompetitors.has(String(storeId))) {
+            throw new Error("Backup possui pesquisa com concorrente fora do cluster.");
+          }
+        });
+      });
+
+      const tenantAlreadyExists = (state.tenants || []).some(
+        (item) => String(item.id) === String(tenantId)
+      );
+      if (tenantAlreadyExists) {
+        dispatch({ type: DOMAIN_DELETE_TENANT, payload: tenantId });
+      }
+
+      dispatch({ type: DOMAIN_UPSERT_TENANT, payload: importedTenant });
+      networks.forEach((item) => {
+        dispatch({ type: DOMAIN_UPSERT_NETWORK, payload: item });
+      });
+      banners.forEach((item) => {
+        dispatch({ type: DOMAIN_UPSERT_BANNER, payload: item });
+      });
+      stores.forEach((item) => {
+        dispatch({ type: DOMAIN_UPSERT_STORE, payload: item });
+      });
+      clusters.forEach((item) => {
+        dispatch({ type: DOMAIN_UPSERT_CLUSTER, payload: item });
+      });
+      researches.forEach((item) => {
+        dispatch({ type: DOMAIN_UPSERT_PRICE_RESEARCH, payload: item });
+      });
+      dispatch({ type: DOMAIN_SET_ACTIVE_TENANT, payload: tenantId });
+
+      return {
+        tenant_id: tenantId,
+        counts: {
+          networks: networks.length,
+          retailBanners: banners.length,
+          stores: stores.length,
+          clusterLevels: clusters.reduce((total, cluster) => total + (cluster.levels?.length || 0), 0),
+          clusters: clusters.length,
+          priceResearches: researches.length
+        }
+      };
+    },
+    [dispatch, state]
+  );
+
+  return {
+    setActiveTenant,
+    saveTenant,
+    removeTenant,
+    saveNetwork,
+    removeNetwork,
+    saveRetailBanner,
+    removeRetailBanner,
+    saveStore,
+    removeStore,
+    saveCluster,
+    removeCluster,
+    savePriceResearch,
+    removePriceResearch,
+    exportTenantSnapshot,
+    importTenantSnapshot,
+    exportTenantsDataset,
+    exportNetworksDataset,
+    exportRetailBannersDataset,
+    exportStoresDataset,
+    exportPriceResearchesDataset,
+    saveTenantsBatch,
+    saveNetworksBatch,
+    saveRetailBannersBatch,
+    saveStoresBatch,
+    savePriceResearchesBatch
+  };
+}

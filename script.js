@@ -1,17 +1,26 @@
 
 
-document.addEventListener('DOMContentLoaded', async() =>{
+async function initLegacyApp() {
+    if (window.__legacyGeoAppStarted) {
+        return;
+    }
+
+    window.__legacyGeoAppStarted = true;
 
     document.documentElement.style.overflow = 'hidden';
     document.body.style.overflow = 'hidden';
     document.documentElement.style.height = '100%';
     document.body.style.height = '100%';
-    
-    document.getElementById('map').appendChild(logoElement())
+
+    const mapElement = document.getElementById('map');
+    if (!mapElement) {
+        throw new Error('Missing #map container');
+    }
+
     const geo = new Geo();
-    
+
     //let position = await geo.getCurrentPosition()
-    
+
     //console.log('User position:', position);
     // Use the position as a Leaflet LatLng object
     // Make mapInstance global
@@ -21,10 +30,9 @@ document.addEventListener('DOMContentLoaded', async() =>{
     // Create an instance of the ImageEditor class to initialize the form
 
     //const imageEditor = new ImageEditor();
-    
-    
 
-    
+
+
 
    // const language = new LanguageModel();
     //document.body.appendChild(language.languageDropdown);
@@ -46,14 +54,23 @@ document.addEventListener('DOMContentLoaded', async() =>{
     }
 
     console.log(data) */
-        
-    window.MAP = map
+
+    window.MAP = map;
     //window.mk = tester(map)
     //tester(map)
+}
 
+if (typeof window !== 'undefined') {
+    window.initLegacyApp = initLegacyApp;
 
-
-});
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+            window.initLegacyApp();
+        });
+    } else {
+        window.initLegacyApp();
+    }
+}
 
 
 async function reverse(lat, lon) {
@@ -65,7 +82,7 @@ async function reverse(lat, lon) {
 
 const retailMap = (latlngs)=>{
 
-    const retailMap = new Map('tenant1', latlngs)
+    const retailMap = new RetailMap('tenant1', latlngs)
 
 
     

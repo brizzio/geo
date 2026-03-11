@@ -102,3 +102,9 @@ class SingleMarker extends MarkerNew {
 
 
 }
+if (typeof window !== 'undefined') {
+  window.SingleMarker = SingleMarker;
+}
+
+
+

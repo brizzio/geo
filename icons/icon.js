@@ -60,3 +60,9 @@ class Icon {
         });
     }
 }
+if (typeof window !== 'undefined') {
+  window.Icon = Icon;
+}
+
+
+

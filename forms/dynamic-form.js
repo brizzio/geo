@@ -119,3 +119,9 @@ class DynamicForm {
         }
     }
 }
+if (typeof window !== 'undefined') {
+  window.DynamicForm = DynamicForm;
+}
+
+
+

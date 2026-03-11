@@ -1155,6 +1155,18 @@ function objectValuesToString(obj) {
     return Object.values(obj).filter(value => value).join(', ');
 }
 
+if (typeof window !== 'undefined') {
+  window.AddressModel = AddressModel;
+  window.GeoModel = GeoModel;
+  window.ContactsModel = ContactsModel;
+  window.CompanyModel = CompanyModel;
+  window.StoreModel = StoreModel;
+  window.MapTree = MapTree;
+  window.SearchResultModel = SearchResultModel;
+  window.SearchItems = SearchItems;
+}
+
+
 
 
 
@@ -1168,4 +1180,5 @@ function objectValuesToString(obj) {
 
 
   
+
 
