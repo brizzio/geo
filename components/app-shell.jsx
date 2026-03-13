@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useFirebaseAuth } from "../features/auth/state/firebase-auth-context";
+import { useDomainActions } from "../features/domain/hooks/use-domain-actions";
+import { useDomainState } from "../features/domain/state/domain-state";
 
 function Icon({ children }) {
   return (
@@ -121,6 +123,18 @@ const NAV_ITEMS = [
         <path d="M11 8v6" />
       </Icon>
     )
+  },
+  {
+    href: "/products",
+    matchPrefixes: ["/products"],
+    label: "Produtos",
+    icon: (
+      <Icon>
+        <path d="M12 3l8 4.5-8 4.5-8-4.5L12 3z" />
+        <path d="M4 7.5V16.5L12 21l8-4.5V7.5" />
+        <path d="M12 12v9" />
+      </Icon>
+    )
   }
 ];
 
@@ -134,7 +148,9 @@ function isHiddenPath(pathname) {
 export default function AppShell({ children }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { currentUser, loading, session, signOut } = useFirebaseAuth();
+  const { currentUser, loading, profile, session, signOut } = useFirebaseAuth();
+  const { state } = useDomainState();
+  const { setActiveTenant } = useDomainActions();
   const isPublicRoute = pathname === "/";
 
   useEffect(() => {
@@ -146,6 +162,31 @@ export default function AppShell({ children }) {
       router.replace("/");
     }
   }, [loading, currentUser, isPublicRoute, router]);
+
+  useEffect(() => {
+    if (loading || !currentUser) {
+      return;
+    }
+
+    const preferredTenantId = String(profile?.default_tenant_id || "").trim();
+    if (!preferredTenantId) {
+      return;
+    }
+
+    const hasPreferredTenant = (state?.tenants || []).some(
+      (tenant) => String(tenant.id) === preferredTenantId
+    );
+    if (!hasPreferredTenant) {
+      return;
+    }
+
+    const activeTenantId = String(state?.meta?.activeTenantId || "").trim();
+    if (activeTenantId === preferredTenantId) {
+      return;
+    }
+
+    setActiveTenant(preferredTenantId);
+  }, [loading, currentUser, profile?.default_tenant_id, setActiveTenant, state?.meta?.activeTenantId, state?.tenants]);
 
   if (!isPublicRoute && loading) {
     return (

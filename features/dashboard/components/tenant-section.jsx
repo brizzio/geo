@@ -61,9 +61,18 @@ export default function TenantSection({
                 />
               ) : null}
               <div className={"flex flex-wrap gap-2"}>
-                <button type="button" className={"cursor-pointer rounded-md border-0 bg-slate-800 px-2.5 py-2 text-xs text-white"} onClick={() => onActivate(tenant.id)}>
-                  Usar conta
-                </button>
+                {String(activeTenantId) === String(tenant.id) ? (
+                  <Link
+                    href={`/accounts/${encodeURIComponent(tenant.id)}/edit`}
+                    className={"inline-flex items-center justify-center rounded-md border-0 bg-slate-800 px-2.5 py-2 text-xs text-white no-underline"}
+                  >
+                    Editar
+                  </Link>
+                ) : (
+                  <button type="button" className={"cursor-pointer rounded-md border-0 bg-slate-800 px-2.5 py-2 text-xs text-white"} onClick={() => onActivate(tenant.id)}>
+                    Usar conta
+                  </button>
+                )}
                 <button type="button" className={`${"cursor-pointer rounded-md border-0 bg-slate-800 px-2.5 py-2 text-xs text-white"} ${"bg-red-700"}`} onClick={() => onDelete(tenant.id)}>
                   Remover
                 </button>

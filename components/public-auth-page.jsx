@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useFirebaseAuth } from "../features/auth/state/firebase-auth-context";
+import { useDomainActions } from "../features/domain/hooks/use-domain-actions";
+import { TENANT_TYPES } from "../features/domain/models";
 
 const MODES = {
   LOGIN: "login",
@@ -30,6 +32,7 @@ function mapAuthError(error) {
 export default function PublicAuthPage() {
   const router = useRouter();
   const { currentUser, loading, signIn, signUp, isConfigured } = useFirebaseAuth();
+  const { saveTenant, setActiveTenant } = useDomainActions();
   const [mode, setMode] = useState(MODES.LOGIN);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedback, setFeedback] = useState(null);
@@ -66,16 +69,35 @@ export default function PublicAuthPage() {
 
     try {
       if (mode === MODES.LOGIN) {
-        await signIn({
+        const result = await signIn({
           email: formData.email.trim(),
           password: formData.password
         });
+        if (result?.createdTenant && result?.tenant) {
+          saveTenant(result.tenant);
+        }
+        const tenantId = result?.tenantId || result?.profile?.default_tenant_id || null;
+        if (tenantId) {
+          setActiveTenant(tenantId);
+        }
       } else {
-        await signUp({
-          email: formData.email.trim(),
+        const email = formData.email.trim();
+        const displayName = formData.displayName.trim();
+        const result = await signUp({
+          email,
           password: formData.password,
-          displayName: formData.displayName.trim() || null
+          displayName: displayName || null,
+          tenantData: {
+            name: displayName || email.split("@")[0] || "Minha conta",
+            person_type: TENANT_TYPES.INDIVIDUAL
+          }
         });
+        if (result?.tenant) {
+          saveTenant(result.tenant);
+        }
+        if (result?.tenantId) {
+          setActiveTenant(result.tenantId);
+        }
       }
       router.replace("/dashboard");
     } catch (error) {

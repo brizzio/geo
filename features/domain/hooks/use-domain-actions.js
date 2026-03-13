@@ -4,6 +4,7 @@ import { useCallback } from "react";
 import {
   createClusterModel,
   createNetworkModel,
+  createProductModel,
   createPriceResearchModel,
   createRetailBannerModel,
   createStoreModel,
@@ -14,6 +15,7 @@ import {
   DOMAIN_DELETE_BANNER,
   DOMAIN_DELETE_CLUSTER,
   DOMAIN_DELETE_NETWORK,
+  DOMAIN_DELETE_PRODUCT,
   DOMAIN_DELETE_PRICE_RESEARCH,
   DOMAIN_DELETE_STORE,
   DOMAIN_DELETE_TENANT,
@@ -21,6 +23,7 @@ import {
   DOMAIN_UPSERT_BANNER,
   DOMAIN_UPSERT_CLUSTER,
   DOMAIN_UPSERT_NETWORK,
+  DOMAIN_UPSERT_PRODUCT,
   DOMAIN_UPSERT_PRICE_RESEARCH,
   DOMAIN_UPSERT_STORE,
   DOMAIN_UPSERT_TENANT
@@ -29,8 +32,8 @@ import { useDomainState } from "../state/domain-state";
 import {
   selectClusterById,
   selectClustersByTenant,
-  selectCompetitorStoreIdsFromCluster,
   selectNetworksByTenant,
+  selectProductsByTenant,
   selectPriceResearchesByTenant,
   selectStoresByTenant,
   selectBannersByTenant,
@@ -103,6 +106,26 @@ function ensureBannerExists(state, bannerId, tenantId) {
   return banner;
 }
 
+function getClusterLevelIds(cluster) {
+  return new Set((cluster?.levels || []).map((level) => String(level.id)));
+}
+
+function normalizeResearchLevelProductLists(research) {
+  return (research?.level_product_lists || []).map((entry) => ({
+    level_id: String(entry?.level_id || ""),
+    product_ids: (entry?.product_ids || []).map((productId) => String(productId))
+  }));
+}
+
+function getAllProductIdsFromResearch(research) {
+  return [
+    ...(research?.default_product_ids || []),
+    ...(research?.level_product_lists || []).flatMap((entry) => entry.product_ids || [])
+  ]
+    .map((value) => String(value || "").trim())
+    .filter(Boolean);
+}
+
 function normalizeComparableName(value) {
   return String(value || "")
     .normalize("NFD")
@@ -132,6 +155,9 @@ function validateImportTenantSnapshot(snapshot) {
   }
   if (!Array.isArray(snapshot.priceResearches)) {
     throw new Error("Backup sem lista de pesquisas valida.");
+  }
+  if (snapshot.products !== undefined && !Array.isArray(snapshot.products)) {
+    throw new Error("Backup sem lista de produtos valida.");
   }
 }
 
@@ -304,22 +330,45 @@ export function useDomainActions() {
 
   const savePriceResearch = useCallback(
     (values) => {
-      const research = createPriceResearchModel(values);
-      ensureTenantExists(state, research.tenant_id);
-      const cluster = selectClusterById(state, research.cluster_id);
+      ensureTenantExists(state, values?.tenant_id);
+      const cluster = selectClusterById(state, values?.cluster_id);
       if (!cluster) {
-        throw new Error("Cluster da pesquisa nao existe.");
+        throw new Error("Cluster do servico nao existe.");
       }
-      if (String(cluster.tenant_id) !== String(research.tenant_id)) {
-        throw new Error("Cluster da pesquisa nao pertence ao tenant.");
+      if (String(cluster.tenant_id) !== String(values?.tenant_id)) {
+        throw new Error("Cluster do servico nao pertence ao tenant.");
       }
 
-      const validCompetitorIds = new Set(selectCompetitorStoreIdsFromCluster(cluster));
-      const hasInvalidCompetitor = (research.competitor_store_ids || []).some(
-        (storeId) => !validCompetitorIds.has(String(storeId))
+      const clusterLevelIds = [...getClusterLevelIds(cluster)];
+      if (clusterLevelIds.length === 0) {
+        throw new Error("Cluster do servico nao possui niveis de concorrencia.");
+      }
+
+      const research = createPriceResearchModel({
+        ...values,
+        level_ids: clusterLevelIds
+      });
+
+      const validLevelIds = getClusterLevelIds(cluster);
+      const normalizedLevelLists = normalizeResearchLevelProductLists(research);
+      const hasInvalidLevel = normalizedLevelLists.some(
+        (entry) => !entry.level_id || !validLevelIds.has(entry.level_id)
       );
-      if (hasInvalidCompetitor) {
-        throw new Error("Pesquisa possui concorrente fora do cluster.");
+      if (hasInvalidLevel) {
+        throw new Error("Servico possui nivel de concorrencia invalido para o cluster.");
+      }
+
+      const tenantProductIds = new Set(
+        selectProductsByTenant(state, research.tenant_id).map((product) => String(product.id))
+      );
+      if (tenantProductIds.size === 0) {
+        throw new Error("Cadastre produtos antes de criar o servico de pesquisa.");
+      }
+
+      const productIds = getAllProductIdsFromResearch(research);
+      const hasInvalidProduct = productIds.some((productId) => !tenantProductIds.has(String(productId)));
+      if (hasInvalidProduct) {
+        throw new Error("Servico possui produto inexistente no tenant.");
       }
 
       dispatch({ type: DOMAIN_UPSERT_PRICE_RESEARCH, payload: research });
@@ -331,6 +380,23 @@ export function useDomainActions() {
   const removePriceResearch = useCallback(
     (researchId) => {
       dispatch({ type: DOMAIN_DELETE_PRICE_RESEARCH, payload: researchId });
+    },
+    [dispatch]
+  );
+
+  const saveProduct = useCallback(
+    (values) => {
+      const product = createProductModel(values);
+      ensureTenantExists(state, product.tenant_id);
+      dispatch({ type: DOMAIN_UPSERT_PRODUCT, payload: product });
+      return product;
+    },
+    [dispatch, state]
+  );
+
+  const removeProduct = useCallback(
+    (productId) => {
+      dispatch({ type: DOMAIN_DELETE_PRODUCT, payload: productId });
     },
     [dispatch]
   );
@@ -351,7 +417,8 @@ export function useDomainActions() {
         stores: selectStoresByTenant(state, tenantId),
         clusterLevels: [],
         clusters,
-        priceResearches: selectPriceResearchesByTenant(state, tenantId)
+        priceResearches: selectPriceResearchesByTenant(state, tenantId),
+        products: selectProductsByTenant(state, tenantId)
       };
 
       return payload;
@@ -432,6 +499,21 @@ export function useDomainActions() {
     [state]
   );
 
+  const exportProductsDataset = useCallback(
+    (tenantIdInput) => {
+      const tenantId = tenantIdInput || state.meta?.activeTenantId;
+      ensureTenantExists(state, tenantId);
+      return {
+        schema_version: SNAPSHOT_VERSION,
+        dataset: "products",
+        tenant_id: tenantId,
+        exported_at: new Date().toISOString(),
+        items: selectProductsByTenant(state, tenantId)
+      };
+    },
+    [state]
+  );
+
   const saveTenantsBatch = useCallback(
     (payload) => {
       const items = toBatchItems(payload);
@@ -492,6 +574,18 @@ export function useDomainActions() {
       });
     },
     [savePriceResearch, state]
+  );
+
+  const saveProductsBatch = useCallback(
+    (tenantIdInput, payload) => {
+      const tenantId = tenantIdInput || state.meta?.activeTenantId;
+      ensureTenantExists(state, tenantId);
+      const items = toBatchItems(payload);
+      return runBatch(items, (item) => {
+        saveProduct({ ...item, tenant_id: tenantId });
+      });
+    },
+    [saveProduct, state]
   );
 
   const importTenantSnapshot = useCallback(
@@ -602,21 +696,42 @@ export function useDomainActions() {
       });
 
       const clusterMap = new Map(clusters.map((item) => [String(item.id), item]));
-      const researches = snapshotInput.priceResearches.map((item) =>
-        createPriceResearchModel({ ...item, tenant_id: tenantId })
+      const products = (snapshotInput.products || []).map((item) =>
+        createProductModel({ ...item, tenant_id: tenantId })
       );
+      const productIdSet = new Set(products.map((item) => String(item.id)));
+      const researches = snapshotInput.priceResearches.map((item) => {
+        const cluster = clusterMap.get(String(item.cluster_id));
+        if (!cluster) {
+          throw new Error("Backup possui pesquisa vinculada a cluster inexistente.");
+        }
+        const clusterLevelIds = [...getClusterLevelIds(cluster)];
+        return createPriceResearchModel({
+          ...item,
+          tenant_id: tenantId,
+          level_ids: clusterLevelIds
+        });
+      });
 
       researches.forEach((research) => {
         const cluster = clusterMap.get(String(research.cluster_id));
         if (!cluster) {
           throw new Error("Backup possui pesquisa vinculada a cluster inexistente.");
         }
-        const validCompetitors = new Set(selectCompetitorStoreIdsFromCluster(cluster));
-        (research.competitor_store_ids || []).forEach((storeId) => {
-          if (!validCompetitors.has(String(storeId))) {
-            throw new Error("Backup possui pesquisa com concorrente fora do cluster.");
-          }
-        });
+        const clusterLevelIds = getClusterLevelIds(cluster);
+        const hasInvalidLevel = normalizeResearchLevelProductLists(research).some(
+          (entry) => !entry.level_id || !clusterLevelIds.has(String(entry.level_id))
+        );
+        if (hasInvalidLevel) {
+          throw new Error("Backup possui servico com nivel fora do cluster.");
+        }
+
+        const hasInvalidProduct = getAllProductIdsFromResearch(research).some(
+          (productId) => !productIdSet.has(String(productId))
+        );
+        if (hasInvalidProduct) {
+          throw new Error("Backup possui servico com produto inexistente na colecao products.");
+        }
       });
 
       const tenantAlreadyExists = (state.tenants || []).some(
@@ -642,6 +757,9 @@ export function useDomainActions() {
       researches.forEach((item) => {
         dispatch({ type: DOMAIN_UPSERT_PRICE_RESEARCH, payload: item });
       });
+      products.forEach((item) => {
+        dispatch({ type: DOMAIN_UPSERT_PRODUCT, payload: item });
+      });
       dispatch({ type: DOMAIN_SET_ACTIVE_TENANT, payload: tenantId });
 
       return {
@@ -652,7 +770,8 @@ export function useDomainActions() {
           stores: stores.length,
           clusterLevels: clusters.reduce((total, cluster) => total + (cluster.levels?.length || 0), 0),
           clusters: clusters.length,
-          priceResearches: researches.length
+          priceResearches: researches.length,
+          products: products.length
         }
       };
     },
@@ -673,6 +792,8 @@ export function useDomainActions() {
     removeCluster,
     savePriceResearch,
     removePriceResearch,
+    saveProduct,
+    removeProduct,
     exportTenantSnapshot,
     importTenantSnapshot,
     exportTenantsDataset,
@@ -680,10 +801,12 @@ export function useDomainActions() {
     exportRetailBannersDataset,
     exportStoresDataset,
     exportPriceResearchesDataset,
+    exportProductsDataset,
     saveTenantsBatch,
     saveNetworksBatch,
     saveRetailBannersBatch,
     saveStoresBatch,
-    savePriceResearchesBatch
+    savePriceResearchesBatch,
+    saveProductsBatch
   };
 }

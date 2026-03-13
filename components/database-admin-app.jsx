@@ -8,6 +8,7 @@ import {
   competitorStoresTemplate,
   networksTemplate,
   priceResearchesTemplate,
+  productsTemplate,
   retailBannersTemplate,
   ownStoresTemplate,
   tenantsTemplate
@@ -153,11 +154,13 @@ function DatabaseRuntime() {
     exportRetailBannersDataset,
     exportStoresDataset,
     exportPriceResearchesDataset,
+    exportProductsDataset,
     saveTenantsBatch,
     saveNetworksBatch,
     saveRetailBannersBatch,
     saveStoresBatch,
-    savePriceResearchesBatch
+    savePriceResearchesBatch,
+    saveProductsBatch
   } = useDomainActions();
 
   const tenants = useMemo(() => selectTenants(state), [state]);
@@ -168,7 +171,6 @@ function DatabaseRuntime() {
   const demoTenantId = activeTenantId || "tenant_demo_1";
   const demoNetworkId = "network_demo_1";
   const demoBannerId = "banner_demo_1";
-  const demoCompetitorStoreId = "store_comp_demo_1";
 
   return (
     <main className={"min-h-screen p-6 text-slate-900 bg-[radial-gradient(circle_at_12%_10%,rgba(255,208,82,0.18),transparent_32%),radial-gradient(circle_at_85%_90%,rgba(37,99,235,0.16),transparent_40%),linear-gradient(180deg,#f7f7f8_0%,#f0f2f5_100%)]"}>
@@ -263,14 +265,22 @@ function DatabaseRuntime() {
           />
 
           <DatasetCard
+            title="Produtos"
+            description="Catalogo de produtos do tenant ativo."
+            disabled={!activeTenantId}
+            onExport={() => exportProductsDataset(activeTenantId)}
+            onImport={(payload) => saveProductsBatch(activeTenantId, payload)}
+            onTemplate={() => productsTemplate(demoTenantId)}
+            filePrefix={`products-${tenantLabel}`}
+          />
+
+          <DatasetCard
             title="Listas de Pesquisa"
-            description="Price researches do tenant ativo."
+            description="Servicos de pesquisa do tenant ativo."
             disabled={!activeTenantId}
             onExport={() => exportPriceResearchesDataset(activeTenantId)}
             onImport={(payload) => savePriceResearchesBatch(activeTenantId, payload)}
-            onTemplate={() =>
-              priceResearchesTemplate(demoTenantId, "cluster_demo_1", demoCompetitorStoreId)
-            }
+            onTemplate={() => priceResearchesTemplate(demoTenantId, "cluster_demo_1")}
             filePrefix={`price-researches-${tenantLabel}`}
           />
         </div>

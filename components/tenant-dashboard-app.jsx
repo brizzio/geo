@@ -42,7 +42,8 @@ function DashboardRuntime() {
       { label: "LOJAS PROPRIAS", value: ownStores.length, href: "/stores" },
       { label: "LOJAS CONCORRENTES", value: competitorStores.length, href: "/competitors" },
       { label: "CLUSTERS", value: totals?.clusters ?? 0, href: "/clusters" },
-      { label: "PESQUISAS", value: totals?.priceResearches ?? 0, href: "/researches" }
+      { label: "PESQUISAS", value: totals?.priceResearches ?? 0, href: "/researches" },
+      { label: "PRODUTOS", value: totals?.products ?? 0, href: "/products" }
     ],
     [totals, ownStores.length, competitorStores.length]
   );
@@ -93,7 +94,7 @@ function DashboardRuntime() {
         type: "success",
         text:
           `Backup importado. Redes: ${result.counts.networks}, Bandeiras: ${result.counts.retailBanners}, ` +
-          `Lojas: ${result.counts.stores}, Clusters: ${result.counts.clusters}, Pesquisas: ${result.counts.priceResearches}.`
+          `Lojas: ${result.counts.stores}, Clusters: ${result.counts.clusters}, Pesquisas: ${result.counts.priceResearches}, Produtos: ${result.counts.products || 0}.`
       });
     } catch (err) {
       setBackupMessage({ type: "error", text: err?.message || "Falha ao importar backup." });

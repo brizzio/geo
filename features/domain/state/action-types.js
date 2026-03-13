@@ -21,3 +21,6 @@ export const DOMAIN_DELETE_CLUSTER = "domain/delete_cluster";
 
 export const DOMAIN_UPSERT_PRICE_RESEARCH = "domain/upsert_price_research";
 export const DOMAIN_DELETE_PRICE_RESEARCH = "domain/delete_price_research";
+
+export const DOMAIN_UPSERT_PRODUCT = "domain/upsert_product";
+export const DOMAIN_DELETE_PRODUCT = "domain/delete_product";

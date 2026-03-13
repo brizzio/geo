@@ -18,8 +18,13 @@ import {
 } from "firebase/auth";
 import { doc, getDoc, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
 import { auth, db, hasFirebaseConfig } from "../../../lib/firebase-client";
+import { createTenantModel, TENANT_TYPES } from "../../domain/models/tenant-model";
 
 const FirebaseAuthContext = createContext(null);
+const FIRESTORE_USERS_COLLECTION = "users";
+const FIRESTORE_SESSIONS_COLLECTION = "sessions";
+const FIRESTORE_ACCOUNTS_COLLECTION = "accounts";
+const FIRESTORE_LEGACY_TENANTS_COLLECTION = "tenants";
 const SESSION_STORAGE_KEY = "geo-auth-active-session-id";
 const SESSION_TTL_HOURS = 2;
 const SESSION_HEARTBEAT_MS = 60 * 1000;
@@ -100,6 +105,32 @@ function getMfaVerified(user) {
   return Array.isArray(enrolled) && enrolled.length > 0;
 }
 
+function buildDefaultTenantName({ tenantName, profile, user }) {
+  const explicitName = String(tenantName || "").trim();
+  if (explicitName) {
+    return explicitName;
+  }
+
+  const profileName = String(profile?.display_name || profile?.username || "").trim();
+  if (profileName) {
+    return profileName;
+  }
+
+  const displayName = String(user?.displayName || "").trim();
+  if (displayName) {
+    return displayName;
+  }
+
+  const emailPrefix = String(user?.email || "")
+    .split("@")[0]
+    ?.trim();
+  if (emailPrefix) {
+    return emailPrefix;
+  }
+
+  return "Minha conta";
+}
+
 async function getAuthContext() {
   const fallbackUserAgent = typeof navigator !== "undefined" ? navigator.userAgent : null;
   const base = {
@@ -133,7 +164,7 @@ async function upsertUserDocument(user, extra = {}) {
     return;
   }
 
-  const ref = doc(db, "users", user.uid);
+  const ref = doc(db, FIRESTORE_USERS_COLLECTION, user.uid);
   const current = await getDoc(ref);
   const now = serverTimestamp();
 
@@ -157,6 +188,28 @@ async function upsertUserDocument(user, extra = {}) {
   await setDoc(ref, basePayload, { merge: true });
 }
 
+async function loadAccountById(accountId) {
+  if (!db || !accountId) {
+    return null;
+  }
+
+  const accountRef = doc(db, FIRESTORE_ACCOUNTS_COLLECTION, String(accountId));
+  const accountSnapshot = await getDoc(accountRef);
+  if (accountSnapshot.exists()) {
+    return accountSnapshot.data();
+  }
+
+  const legacyRef = doc(db, FIRESTORE_LEGACY_TENANTS_COLLECTION, String(accountId));
+  const legacySnapshot = await getDoc(legacyRef);
+  if (!legacySnapshot.exists()) {
+    return null;
+  }
+
+  const legacyData = legacySnapshot.data();
+  await setDoc(accountRef, legacyData, { merge: true });
+  return legacyData;
+}
+
 export function FirebaseAuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [profile, setProfile] = useState(null);
@@ -169,9 +222,75 @@ export function FirebaseAuthProvider({ children }) {
     if (!db || !uid) {
       return null;
     }
-    const snapshot = await getDoc(doc(db, "users", uid));
+    const snapshot = await getDoc(doc(db, FIRESTORE_USERS_COLLECTION, uid));
     return snapshot.exists() ? snapshot.data() : null;
   }, []);
+
+  const ensureDefaultTenant = useCallback(async (user, currentProfile, options = {}) => {
+    if (!db || !user?.uid) {
+      return {
+        profile: currentProfile || null,
+        tenant: null,
+        tenantId: null,
+        createdTenant: false
+      };
+    }
+
+    const existingTenantId = String(currentProfile?.default_tenant_id || "").trim();
+    const fallbackTenantId = String(options?.tenantData?.id || `tenant_${user.uid}`).trim();
+    const tenantId = existingTenantId || fallbackTenantId;
+    let createdTenant = false;
+    let tenant = null;
+
+    if (existingTenantId) {
+      tenant = await loadAccountById(tenantId);
+    }
+
+    if (!tenant) {
+      tenant = createTenantModel({
+        ...(options?.tenantData || {}),
+        id: tenantId,
+        name: buildDefaultTenantName({
+          tenantName: options?.tenantData?.name,
+          profile: currentProfile,
+          user
+        }),
+        person_type:
+          options?.tenantData?.person_type === TENANT_TYPES.COMPANY
+            ? TENANT_TYPES.COMPANY
+            : TENANT_TYPES.INDIVIDUAL
+      });
+      await setDoc(doc(db, FIRESTORE_ACCOUNTS_COLLECTION, String(tenant.id)), tenant, { merge: true });
+      createdTenant = true;
+    }
+
+    const tenantIds = Array.isArray(currentProfile?.tenant_ids) ? currentProfile.tenant_ids : [];
+    const hasTenantLinked = tenantIds.some((id) => String(id) === String(tenant.id));
+    const shouldUpdateProfile =
+      !existingTenantId || String(existingTenantId) !== String(tenant.id) || !hasTenantLinked;
+
+    if (!shouldUpdateProfile) {
+      return {
+        profile: currentProfile || null,
+        tenant,
+        tenantId: tenant.id,
+        createdTenant
+      };
+    }
+
+    await upsertUserDocument(user, {
+      default_tenant_id: tenant.id,
+      tenant_ids: [tenant.id]
+    });
+    const refreshedProfile = await loadProfile(user.uid);
+
+    return {
+      profile: refreshedProfile,
+      tenant,
+      tenantId: tenant.id,
+      createdTenant
+    };
+  }, [loadProfile]);
 
   const closeSession = useCallback(async (sessionId, metadata = {}) => {
     if (!db || !sessionId) {
@@ -179,7 +298,7 @@ export function FirebaseAuthProvider({ children }) {
     }
 
     const now = getNowIso();
-    await updateDoc(doc(db, "sessions", String(sessionId)), {
+    await updateDoc(doc(db, FIRESTORE_SESSIONS_COLLECTION, String(sessionId)), {
       active: false,
       "timestamps.lastActiveAt": now,
       "timestamps.closed_at": now,
@@ -194,7 +313,7 @@ export function FirebaseAuthProvider({ children }) {
     }
 
     const now = getNowIso();
-    await updateDoc(doc(db, "sessions", String(sessionId)), {
+    await updateDoc(doc(db, FIRESTORE_SESSIONS_COLLECTION, String(sessionId)), {
       "timestamps.lastActiveAt": now,
       "timestamps.expiresAt": getExpiresAtIso(),
       updated_at: now
@@ -232,7 +351,7 @@ export function FirebaseAuthProvider({ children }) {
       updated_at: now
     };
 
-    await setDoc(doc(db, "sessions", sessionId), payload);
+    await setDoc(doc(db, FIRESTORE_SESSIONS_COLLECTION, sessionId), payload);
 
     if (typeof window !== "undefined") {
       window.localStorage.setItem(SESSION_STORAGE_KEY, sessionId);
@@ -251,7 +370,7 @@ export function FirebaseAuthProvider({ children }) {
 
     if (storedId) {
       try {
-        const snapshot = await getDoc(doc(db, "sessions", storedId));
+        const snapshot = await getDoc(doc(db, FIRESTORE_SESSIONS_COLLECTION, storedId));
         if (snapshot.exists()) {
           const existing = snapshot.data();
           const isSameUser = String(existing?.userId) === String(user.uid);
@@ -321,7 +440,7 @@ export function FirebaseAuthProvider({ children }) {
     return unsubscribe;
   }, [ensureSession, loadProfile]);
 
-  const signUp = useCallback(async ({ email, password, displayName = null, userData = {} }) => {
+  const signUp = useCallback(async ({ email, password, displayName = null, userData = {}, tenantData = null }) => {
     ensureFirebaseReady();
     setError(null);
 
@@ -341,10 +460,18 @@ export function FirebaseAuthProvider({ children }) {
     );
 
     const nextProfile = await loadProfile(user.uid);
-    setProfile(nextProfile);
+    const tenantResult = await ensureDefaultTenant(user, nextProfile, { tenantData });
+    const ensuredProfile = tenantResult.profile || nextProfile;
+    setProfile(ensuredProfile);
     setCurrentUser(user);
-    return user;
-  }, [loadProfile]);
+    return {
+      user,
+      profile: ensuredProfile,
+      tenant: tenantResult.tenant,
+      tenantId: tenantResult.tenantId,
+      createdTenant: tenantResult.createdTenant
+    };
+  }, [ensureDefaultTenant, loadProfile]);
 
   const signIn = useCallback(async ({ email, password }) => {
     ensureFirebaseReady();
@@ -355,10 +482,18 @@ export function FirebaseAuthProvider({ children }) {
     await upsertUserDocument(user);
 
     const nextProfile = await loadProfile(user.uid);
-    setProfile(nextProfile);
+    const tenantResult = await ensureDefaultTenant(user, nextProfile);
+    const ensuredProfile = tenantResult.profile || nextProfile;
+    setProfile(ensuredProfile);
     setCurrentUser(user);
-    return user;
-  }, [loadProfile]);
+    return {
+      user,
+      profile: ensuredProfile,
+      tenant: tenantResult.tenant,
+      tenantId: tenantResult.tenantId,
+      createdTenant: tenantResult.createdTenant
+    };
+  }, [ensureDefaultTenant, loadProfile]);
 
   const signOutUser = useCallback(async () => {
     ensureFirebaseReady();

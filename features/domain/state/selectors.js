@@ -4,6 +4,10 @@ export function selectTenants(state) {
   return state?.tenants || [];
 }
 
+export function selectTenantById(state, tenantId) {
+  return selectTenants(state).find((item) => String(item.id) === String(tenantId)) || null;
+}
+
 export function selectActiveTenantId(state) {
   return state?.meta?.activeTenantId || null;
 }
@@ -77,6 +81,14 @@ export function selectPriceResearchById(state, researchId) {
   return (state?.priceResearches || []).find((item) => String(item.id) === String(researchId)) || null;
 }
 
+export function selectProductsByTenant(state, tenantId) {
+  return (state?.products || []).filter((item) => String(item.tenant_id) === String(tenantId));
+}
+
+export function selectProductById(state, productId) {
+  return (state?.products || []).find((item) => String(item.id) === String(productId)) || null;
+}
+
 export function selectClusterById(state, clusterId) {
   return (state?.clusters || []).find((item) => String(item.id) === String(clusterId)) || null;
 }
@@ -99,6 +111,7 @@ export function selectDashboardTotals(state, tenantId) {
     retailBanners: selectBannersByTenant(state, tenantId).length,
     stores: selectStoresByTenant(state, tenantId).length,
     clusters: selectClustersByTenant(state, tenantId).length,
-    priceResearches: selectPriceResearchesByTenant(state, tenantId).length
+    priceResearches: selectPriceResearchesByTenant(state, tenantId).length,
+    products: selectProductsByTenant(state, tenantId).length
   };
 }

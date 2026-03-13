@@ -2,14 +2,18 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import AddressFieldset from "./forms/address-fieldset";
 import { useAddressLookup } from "../features/domain/hooks/use-address-lookup";
 import { TENANT_TYPES } from "../features/domain/models";
 import { useDomainActions } from "../features/domain/hooks/use-domain-actions";
 import { formatLatlon, parseLatlonText } from "../features/domain/utils/latlon";
+import { useDomainState } from "../features/domain/state/domain-state";
+import { selectTenantById } from "../features/domain/state/selectors";
 
 const INITIAL_FORM = {
+  id: "",
+  created_at: null,
   name: "",
   person_type: TENANT_TYPES.COMPANY,
   document: "",
@@ -32,6 +36,39 @@ const INITIAL_FORM = {
 
 const PRIMARY_BUTTON_CLASS =
   "cursor-pointer rounded-md border-0 bg-slate-800 px-2.5 py-2 text-xs text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60";
+
+function createEmptyForm() {
+  return {
+    ...INITIAL_FORM,
+    address: { ...INITIAL_FORM.address },
+    geo: { ...INITIAL_FORM.geo }
+  };
+}
+
+function toFormFromTenant(tenant) {
+  const lat = Number.parseFloat(tenant?.geo?.latlon?.[0]);
+  const lon = Number.parseFloat(tenant?.geo?.latlon?.[1]);
+  const hasCoords = Number.isFinite(lat) && Number.isFinite(lon);
+
+  return {
+    ...createEmptyForm(),
+    id: String(tenant?.id || ""),
+    created_at: tenant?.created_at || null,
+    name: tenant?.name || "",
+    person_type:
+      tenant?.person_type === TENANT_TYPES.INDIVIDUAL ? TENANT_TYPES.INDIVIDUAL : TENANT_TYPES.COMPANY,
+    document: tenant?.document || "",
+    logo_base64: typeof tenant?.logo_base64 === "string" ? tenant.logo_base64 : null,
+    address: {
+      ...INITIAL_FORM.address,
+      ...(tenant?.address || {})
+    },
+    geo: {
+      latlon: hasCoords ? [lat, lon] : null,
+      source: tenant?.geo?.source || null
+    }
+  };
+}
 
 function readFileAsDataURL(file) {
   return new Promise((resolve, reject) => {
@@ -78,12 +115,31 @@ async function optimizeLogo(file) {
   return canvas.toDataURL("image/webp", 0.85);
 }
 
-function AccountFormRuntime() {
+function AccountFormRuntime({ mode = "create", accountId = null }) {
   const router = useRouter();
+  const { state, hydrationDone } = useDomainState();
   const { saveTenant, setActiveTenant } = useDomainActions();
-  const [form, setForm] = useState(INITIAL_FORM);
+  const isEdit = mode === "edit";
+  const currentAccountId = accountId ? String(accountId) : null;
+  const tenantToEdit = useMemo(() => {
+    if (!isEdit || !currentAccountId) {
+      return null;
+    }
+    return selectTenantById(state, currentAccountId);
+  }, [state, isEdit, currentAccountId]);
+  const [form, setForm] = useState(() => createEmptyForm());
+  const [bootstrapped, setBootstrapped] = useState(!isEdit);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!isEdit || !tenantToEdit) {
+      return;
+    }
+
+    setForm(toFormFromTenant(tenantToEdit));
+    setBootstrapped(true);
+  }, [isEdit, tenantToEdit]);
 
   const logoPreview = useMemo(() => form.logo_base64 || null, [form.logo_base64]);
   const latlonValue = useMemo(() => formatLatlon(form.geo?.latlon), [form.geo?.latlon]);
@@ -148,7 +204,7 @@ function AccountFormRuntime() {
 
   const {
     searchValue: addressSearch,
-    setSearchValue: setAddressSearch,
+    setSearchValue,
     resolving: resolvingAddress,
     addressOptions,
     selectedAddressOption,
@@ -166,6 +222,13 @@ function AccountFormRuntime() {
     applyResolvedAddress,
     countryCode: "br"
   });
+
+  useEffect(() => {
+    if (!isEdit || !tenantToEdit) {
+      return;
+    }
+    setSearchValue(tenantToEdit?.address?.display_name || "");
+  }, [isEdit, tenantToEdit, setSearchValue]);
 
   async function resolveAddress({ throwOnError = false } = {}) {
     setError("");
@@ -204,6 +267,10 @@ function AccountFormRuntime() {
     setError("");
 
     try {
+      if (isEdit && !tenantToEdit) {
+        throw new Error("Conta nao encontrada para edicao.");
+      }
+
       let payload = form;
 
       if (!form.geo?.latlon) {
@@ -220,7 +287,7 @@ function AccountFormRuntime() {
 
       const saved = saveTenant(payload);
       setActiveTenant(saved.id);
-      router.push("/");
+      router.push("/accounts");
     } catch (err) {
       setError(err?.message || "Falha ao salvar conta.");
     } finally {
@@ -228,19 +295,65 @@ function AccountFormRuntime() {
     }
   }
 
+  if (isEdit && !hydrationDone) {
+    return (
+      <main className={"min-h-screen p-6 text-slate-900 bg-[radial-gradient(circle_at_12%_10%,rgba(255,208,82,0.18),transparent_32%),radial-gradient(circle_at_85%_90%,rgba(37,99,235,0.16),transparent_40%),linear-gradient(180deg,#f7f7f8_0%,#f0f2f5_100%)]"}>
+        <div className={"mx-auto grid max-w-[1440px] gap-4"}>
+          <section className={"grid gap-2.5 rounded-xl border border-slate-900/10 bg-white/90 p-[14px]"}>
+            <h2 className={"m-0 text-lg"}>Carregando conta...</h2>
+          </section>
+        </div>
+      </main>
+    );
+  }
+
+  if (isEdit && hydrationDone && !tenantToEdit) {
+    return (
+      <main className={"min-h-screen p-6 text-slate-900 bg-[radial-gradient(circle_at_12%_10%,rgba(255,208,82,0.18),transparent_32%),radial-gradient(circle_at_85%_90%,rgba(37,99,235,0.16),transparent_40%),linear-gradient(180deg,#f7f7f8_0%,#f0f2f5_100%)]"}>
+        <div className={"mx-auto grid max-w-[1440px] gap-4"}>
+          <section className={"grid gap-2.5 rounded-xl border border-slate-900/10 bg-white/90 p-[14px]"}>
+            <h2 className={"m-0 text-lg"}>Conta nao encontrada</h2>
+            <p className={"m-0 text-xs opacity-70"}>
+              A conta informada nao existe ou foi removida.
+            </p>
+            <div className={"flex flex-wrap gap-2"}>
+              <Link href="/accounts" className={"inline-flex items-center justify-center rounded-lg border border-slate-900 bg-slate-900 px-3 py-2.5 text-[13px] text-white no-underline"}>
+                Voltar para contas
+              </Link>
+            </div>
+          </section>
+        </div>
+      </main>
+    );
+  }
+
+  if (isEdit && !bootstrapped) {
+    return (
+      <main className={"min-h-screen p-6 text-slate-900 bg-[radial-gradient(circle_at_12%_10%,rgba(255,208,82,0.18),transparent_32%),radial-gradient(circle_at_85%_90%,rgba(37,99,235,0.16),transparent_40%),linear-gradient(180deg,#f7f7f8_0%,#f0f2f5_100%)]"}>
+        <div className={"mx-auto grid max-w-[1440px] gap-4"}>
+          <section className={"grid gap-2.5 rounded-xl border border-slate-900/10 bg-white/90 p-[14px]"}>
+            <h2 className={"m-0 text-lg"}>Preparando formulario...</h2>
+          </section>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className={"min-h-screen p-6 text-slate-900 bg-[radial-gradient(circle_at_12%_10%,rgba(255,208,82,0.18),transparent_32%),radial-gradient(circle_at_85%_90%,rgba(37,99,235,0.16),transparent_40%),linear-gradient(180deg,#f7f7f8_0%,#f0f2f5_100%)]"}>
       <div className={"mx-auto grid max-w-[1440px] gap-4"}>
         <header className={"flex items-center justify-between gap-4 rounded-[14px] bg-white/[0.85] px-5 py-[18px] shadow-[0_10px_20px_rgba(15,23,42,0.08)]"}>
           <div>
-            <h1 className={"m-0 text-[30px] tracking-[0.5px]"}>Criar CONTA</h1>
+            <h1 className={"m-0 text-[30px] tracking-[0.5px]"}>{isEdit ? "Editar CONTA" : "Criar CONTA"}</h1>
             <p className={"mb-0 mt-1 text-sm [opacity:0.85]"}>
-              Cadastro de conta com endereco validado via Nominatim e geolocalizacao.
+              {isEdit
+                ? "Atualize os dados da conta com endereco validado via Nominatim e geolocalizacao."
+                : "Cadastro de conta com endereco validado via Nominatim e geolocalizacao."}
             </p>
           </div>
           <div className={"flex flex-wrap items-center gap-2"}>
-            <Link href="/dashboard" className={"inline-flex items-center justify-center rounded-lg border border-slate-900 bg-slate-900 px-3 py-2.5 text-[13px] text-white no-underline"}>
-              Voltar ao dashboard
+            <Link href="/accounts" className={"inline-flex items-center justify-center rounded-lg border border-slate-900 bg-slate-900 px-3 py-2.5 text-[13px] text-white no-underline"}>
+              Voltar para contas
             </Link>
           </div>
         </header>
@@ -278,11 +391,18 @@ function AccountFormRuntime() {
               </label>
             </div>
 
+            {isEdit ? (
+              <label className={"grid gap-1 text-xs [&>input]:w-full [&>input]:rounded-md [&>input]:border [&>input]:border-slate-300 [&>input]:bg-white [&>input]:p-2 [&>input]:text-[13px] [&>select]:w-full [&>select]:rounded-md [&>select]:border [&>select]:border-slate-300 [&>select]:bg-white [&>select]:p-2 [&>select]:text-[13px] [&>textarea]:w-full [&>textarea]:min-h-[70px] [&>textarea]:rounded-md [&>textarea]:border [&>textarea]:border-slate-300 [&>textarea]:bg-white [&>textarea]:p-2 [&>textarea]:text-[13px]"}>
+                <span>ID da conta</span>
+                <input value={form.id} readOnly />
+              </label>
+            ) : null}
+
             <AddressFieldset
               address={form.address}
               onAddressChange={updateAddress}
               searchValue={addressSearch}
-              onSearchValueChange={setAddressSearch}
+              onSearchValueChange={setSearchValue}
               onSearch={() => resolveAddress()}
               searching={resolvingAddress}
               options={addressOptions}
@@ -321,7 +441,7 @@ function AccountFormRuntime() {
 
             <div className={"flex flex-wrap gap-2"}>
               <button type="submit" className={PRIMARY_BUTTON_CLASS} disabled={saving}>
-                {saving ? "Salvando..." : "Criar conta"}
+                {saving ? "Salvando..." : isEdit ? "Salvar alteracoes" : "Criar conta"}
               </button>
             </div>
           </form>
@@ -331,8 +451,8 @@ function AccountFormRuntime() {
   );
 }
 
-export default function AccountFormApp() {
-  return <AccountFormRuntime />;
+export default function AccountFormApp({ mode = "create", accountId = null }) {
+  return <AccountFormRuntime mode={mode} accountId={accountId} />;
 }
 
 

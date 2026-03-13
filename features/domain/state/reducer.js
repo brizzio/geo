@@ -3,6 +3,7 @@ import {
   DOMAIN_DELETE_CLUSTER,
   DOMAIN_DELETE_CLUSTER_LEVEL,
   DOMAIN_DELETE_NETWORK,
+  DOMAIN_DELETE_PRODUCT,
   DOMAIN_DELETE_PRICE_RESEARCH,
   DOMAIN_DELETE_STORE,
   DOMAIN_DELETE_TENANT,
@@ -12,6 +13,7 @@ import {
   DOMAIN_UPSERT_CLUSTER,
   DOMAIN_UPSERT_CLUSTER_LEVEL,
   DOMAIN_UPSERT_NETWORK,
+  DOMAIN_UPSERT_PRODUCT,
   DOMAIN_UPSERT_PRICE_RESEARCH,
   DOMAIN_UPSERT_STORE,
   DOMAIN_UPSERT_TENANT
@@ -192,6 +194,286 @@ function normalizeStore(item = {}) {
   };
 }
 
+function normalizeProductImage(rawProduct = {}) {
+  const rawImage = rawProduct?.image && typeof rawProduct.image === "object" ? rawProduct.image : {};
+  const legacyImageUrl =
+    normalizeText(rawProduct.image_url) ||
+    (typeof rawProduct.image === "string" ? normalizeText(rawProduct.image) : "");
+
+  const imageUrl = normalizeText(rawImage.image_url || rawImage.url) || legacyImageUrl || null;
+  const displayUrl = normalizeText(rawImage.display_url) || imageUrl || null;
+  const thumbUrl = normalizeText(rawImage.thumb_url) || null;
+  const mediumUrl = normalizeText(rawImage.medium_url) || null;
+  const deleteUrl = normalizeText(rawImage.delete_url) || null;
+  const providerId = normalizeText(rawImage.id) || null;
+  const provider = normalizeText(rawImage.provider) || (imageUrl ? "imgbb" : null);
+
+  const hasAnyValue =
+    imageUrl || displayUrl || thumbUrl || mediumUrl || deleteUrl || providerId || provider;
+
+  if (!hasAnyValue) {
+    return null;
+  }
+
+  return {
+    provider,
+    id: providerId,
+    image_url: imageUrl,
+    display_url: displayUrl,
+    thumb_url: thumbUrl,
+    medium_url: mediumUrl,
+    delete_url: deleteUrl
+  };
+}
+
+function normalizeProductNumber(value) {
+  const text = normalizeText(value);
+  if (!text && text !== "0") {
+    return null;
+  }
+
+  const parsed = Number.parseFloat(String(value).replace(",", "."));
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    return null;
+  }
+
+  return parsed;
+}
+
+function normalizeProduct(item = {}) {
+  const image = normalizeProductImage(item);
+
+  return {
+    ...item,
+    tenant_id: normalizeText(item.tenant_id) || null,
+    internal_reference: normalizeText(item.internal_reference) || null,
+    ean: normalizeText(item.ean) || null,
+    name: normalizeText(item.name) || "",
+    description: normalizeText(item.description) || null,
+    code_plu: normalizeText(item.code_plu) || null,
+    image,
+    image_url: image?.image_url || normalizeText(item.image_url) || null,
+    brand: normalizeText(item.brand) || null,
+    line: normalizeText(item.line) || null,
+    industry_name: normalizeText(item.industry_name) || null,
+    presentation: normalizeText(item.presentation) || null,
+    weight: normalizeProductNumber(item.weight),
+    weight_unit: normalizeText(item.weight_unit) || null,
+    volume: normalizeProductNumber(item.volume),
+    volume_unit: normalizeText(item.volume_unit) || null,
+    category: normalizeText(item.category) || null
+  };
+}
+
+const RESEARCH_WEEKDAY_IDS = new Set([
+  "MONDAY",
+  "TUESDAY",
+  "WEDNESDAY",
+  "THURSDAY",
+  "FRIDAY",
+  "SATURDAY",
+  "SUNDAY"
+]);
+
+function normalizeResearchStatus(value) {
+  const normalized = normalizeText(value).toUpperCase();
+  return normalized === "SUSPENDED" ? "SUSPENDED" : "ACTIVE";
+}
+
+function normalizeResearchWeekdays(rawResearch = {}) {
+  const source =
+    rawResearch?.recurrence?.weekdays ||
+    rawResearch?.recurrence_weekdays ||
+    [];
+
+  return uniqueStrings(source)
+    .map((item) => normalizeText(item).toUpperCase())
+    .filter((item) => RESEARCH_WEEKDAY_IDS.has(item));
+}
+
+function normalizeResearchDurationDays(rawResearch = {}) {
+  const parsedDuration = Number.parseInt(rawResearch?.duration_days, 10);
+  if (Number.isFinite(parsedDuration) && parsedDuration > 0) {
+    return parsedDuration;
+  }
+
+  const startDate = normalizeText(rawResearch?.start_date);
+  const endDate = normalizeText(rawResearch?.end_date);
+  if (!startDate || !endDate) {
+    return null;
+  }
+
+  const start = Date.parse(`${startDate}T00:00:00Z`);
+  const end = Date.parse(`${endDate}T00:00:00Z`);
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) {
+    return null;
+  }
+
+  const days = Math.floor((end - start) / 86_400_000) + 1;
+  return days > 0 ? days : null;
+}
+
+function buildProductLookupByTenant(products = []) {
+  const map = new Map();
+
+  products.forEach((product) => {
+    const tenantId = String(product?.tenant_id || "");
+    if (!tenantId) {
+      return;
+    }
+
+    const current = map.get(tenantId) || {
+      byId: new Map(),
+      byEan: new Map(),
+      byName: new Map()
+    };
+
+    const productId = String(product?.id || "");
+    if (productId) {
+      current.byId.set(productId, productId);
+    }
+
+    const ean = normalizeText(product?.ean);
+    if (ean) {
+      current.byEan.set(ean, productId);
+    }
+
+    const name = normalizeText(product?.name).toLowerCase();
+    if (name) {
+      current.byName.set(name, productId);
+    }
+
+    map.set(tenantId, current);
+  });
+
+  return map;
+}
+
+function resolveLegacyResearchProductId(product = {}, lookup = null) {
+  const directId = normalizeText(product?.product_id || product?.productId || product?.id);
+  if (directId && lookup?.byId?.has(directId)) {
+    return directId;
+  }
+
+  const ean = normalizeText(product?.ean || product?.gtin);
+  if (ean && lookup?.byEan?.has(ean)) {
+    return lookup.byEan.get(ean);
+  }
+
+  const name = normalizeText(product?.name).toLowerCase();
+  if (name && lookup?.byName?.has(name)) {
+    return lookup.byName.get(name);
+  }
+
+  return null;
+}
+
+function normalizeResearchLevelProductLists(rawResearch = {}, cluster = null, lookup = null) {
+  const clusterLevelIds = uniqueStrings(
+    (cluster?.levels || []).map((level) => String(level.id))
+  );
+
+  const sourceLevelLists = toArray(rawResearch.level_product_lists)
+    .map((entry) => ({
+      level_id: normalizeText(entry?.level_id),
+      product_ids: uniqueStrings(entry?.product_ids || entry?.products || [])
+        .map((value) => normalizeText(value))
+        .filter(Boolean)
+    }))
+    .filter((entry) => entry.level_id);
+
+  const legacyProductIds = toArray(rawResearch.products)
+    .map((product) => resolveLegacyResearchProductId(product, lookup))
+    .filter(Boolean);
+
+  const defaultProductIds = uniqueStrings([
+    ...toArray(rawResearch.default_product_ids),
+    ...toArray(rawResearch.product_ids),
+    ...legacyProductIds
+  ])
+    .map((value) => normalizeText(value))
+    .filter(Boolean);
+
+  const sameForAll =
+    rawResearch.same_product_list_for_all_levels === undefined
+      ? sourceLevelLists.length === 0
+      : Boolean(rawResearch.same_product_list_for_all_levels);
+
+  const targetLevelIds =
+    clusterLevelIds.length > 0
+      ? clusterLevelIds
+      : uniqueStrings(sourceLevelLists.map((entry) => String(entry.level_id)));
+
+  if (targetLevelIds.length === 0) {
+    return {
+      same_product_list_for_all_levels: sameForAll,
+      default_product_ids: defaultProductIds,
+      level_product_lists: []
+    };
+  }
+
+  if (sameForAll) {
+    const sharedProductIds =
+      defaultProductIds.length > 0
+        ? defaultProductIds
+        : uniqueStrings(sourceLevelLists.flatMap((entry) => entry.product_ids || []));
+
+    return {
+      same_product_list_for_all_levels: true,
+      default_product_ids: sharedProductIds,
+      level_product_lists: targetLevelIds.map((levelId) => ({
+        level_id: String(levelId),
+        product_ids: uniqueStrings(sharedProductIds)
+      }))
+    };
+  }
+
+  const sourceMap = new Map(
+    sourceLevelLists.map((entry) => [String(entry.level_id), uniqueStrings(entry.product_ids || [])])
+  );
+
+  const levelProductLists = targetLevelIds.map((levelId) => ({
+    level_id: String(levelId),
+    product_ids: uniqueStrings(sourceMap.get(String(levelId)) || [])
+  }));
+
+  return {
+    same_product_list_for_all_levels: false,
+    default_product_ids: uniqueStrings(levelProductLists.flatMap((entry) => entry.product_ids || [])),
+    level_product_lists: levelProductLists
+  };
+}
+
+function normalizePriceResearch(rawResearch = {}, clusterById = new Map(), productLookupByTenant = new Map()) {
+  const tenantId = normalizeText(rawResearch?.tenant_id) || null;
+  const clusterId = normalizeText(rawResearch?.cluster_id) || null;
+  const cluster = clusterById.get(String(clusterId)) || null;
+  const lookup = productLookupByTenant.get(String(tenantId)) || null;
+  const normalizedLevels = normalizeResearchLevelProductLists(rawResearch, cluster, lookup);
+  const recurrenceWeekdays = normalizeResearchWeekdays(rawResearch);
+  const recurrenceEnabled =
+    Boolean(rawResearch?.recurrence_enabled) ||
+    Boolean(rawResearch?.recurrence?.enabled) ||
+    recurrenceWeekdays.length > 0;
+  const isDurationIndefinite = Boolean(rawResearch?.is_duration_indefinite);
+
+  return {
+    ...rawResearch,
+    tenant_id: tenantId,
+    cluster_id: clusterId,
+    name: normalizeText(rawResearch?.name) || "",
+    status: normalizeResearchStatus(rawResearch?.status),
+    start_date: normalizeText(rawResearch?.start_date) || "",
+    duration_days: isDurationIndefinite ? null : normalizeResearchDurationDays(rawResearch),
+    is_duration_indefinite: isDurationIndefinite,
+    recurrence_enabled: recurrenceEnabled,
+    recurrence_weekdays: recurrenceEnabled ? recurrenceWeekdays : [],
+    same_product_list_for_all_levels: normalizedLevels.same_product_list_for_all_levels,
+    default_product_ids: normalizedLevels.default_product_ids,
+    level_product_lists: normalizedLevels.level_product_lists
+  };
+}
+
 function normalizeLevelCode(value) {
   const raw = normalizeText(value);
   if (!raw) {
@@ -305,6 +587,12 @@ export function normalizeDomainState(rawState) {
   }
 
   const legacyClusterLevels = toArray(rawState.clusterLevels);
+  const clusters = toArray(rawState.clusters).map((cluster) =>
+    normalizeCluster(cluster, legacyClusterLevels)
+  );
+  const products = toArray(rawState.products).map(normalizeProduct);
+  const clusterById = new Map(clusters.map((cluster) => [String(cluster.id), cluster]));
+  const productLookupByTenant = buildProductLookupByTenant(products);
 
   return {
     meta: {
@@ -315,10 +603,11 @@ export function normalizeDomainState(rawState) {
     retailBanners: toArray(rawState.retailBanners).map(normalizeRetailBanner),
     stores: toArray(rawState.stores).map(normalizeStore),
     clusterLevels: [],
-    clusters: toArray(rawState.clusters).map((cluster) =>
-      normalizeCluster(cluster, legacyClusterLevels)
+    clusters,
+    priceResearches: toArray(rawState.priceResearches).map((research) =>
+      normalizePriceResearch(research, clusterById, productLookupByTenant)
     ),
-    priceResearches: toArray(rawState.priceResearches)
+    products
   };
 }
 
@@ -424,6 +713,7 @@ function cascadeDeleteTenant(state, tenantId) {
       });
       return next;
     });
+  const products = state.products.filter((item) => !tenantIds.has(String(item.tenant_id)));
 
   return {
     ...state,
@@ -438,7 +728,8 @@ function cascadeDeleteTenant(state, tenantId) {
     stores,
     clusterLevels: [],
     clusters,
-    priceResearches
+    priceResearches,
+    products
   };
 }
 
@@ -649,14 +940,31 @@ export function domainReducer(state, action) {
     case DOMAIN_DELETE_CLUSTER:
       return cascadeDeleteCluster(state, action.payload);
     case DOMAIN_UPSERT_PRICE_RESEARCH:
-      return {
-        ...state,
-        priceResearches: upsertById(state.priceResearches, action.payload)
-      };
+      {
+        const clusterById = new Map((state.clusters || []).map((cluster) => [String(cluster.id), cluster]));
+        const productLookupByTenant = buildProductLookupByTenant(state.products || []);
+        return {
+          ...state,
+          priceResearches: upsertById(
+            state.priceResearches,
+            normalizePriceResearch(action.payload, clusterById, productLookupByTenant)
+          )
+        };
+      }
     case DOMAIN_DELETE_PRICE_RESEARCH:
       return {
         ...state,
         priceResearches: removeById(state.priceResearches, action.payload)
+      };
+    case DOMAIN_UPSERT_PRODUCT:
+      return {
+        ...state,
+        products: upsertById(state.products, normalizeProduct(action.payload))
+      };
+    case DOMAIN_DELETE_PRODUCT:
+      return {
+        ...state,
+        products: removeById(state.products, action.payload)
       };
     default:
       return state;

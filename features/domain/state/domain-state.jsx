@@ -9,14 +9,16 @@ import { db, hasFirebaseConfig } from "../../../lib/firebase-client";
 
 const STORAGE_KEY = "geo-domain-state-v1";
 const FIRESTORE_COLLECTIONS = {
-  tenants: "tenants",
+  tenants: "accounts",
   networks: "networks",
   retailBanners: "retail_banners",
   stores: "stores",
   clusterLevels: "cluster_levels",
   clusters: "clusters",
-  priceResearches: "price_researches"
+  priceResearches: "price_researches",
+  products: "products"
 };
+const LEGACY_TENANTS_COLLECTION = "tenants";
 const SYNC_KEYS = Object.keys(FIRESTORE_COLLECTIONS);
 const MAX_BATCH_WRITES = 450;
 const DomainStateContext = createContext(null);
@@ -49,6 +51,27 @@ function toEntityMap(items = []) {
   return map;
 }
 
+async function migrateLegacyTenantsToAccounts(items = []) {
+  if (!db || !Array.isArray(items) || items.length === 0) {
+    return;
+  }
+
+  for (let offset = 0; offset < items.length; offset += MAX_BATCH_WRITES) {
+    const batch = writeBatch(db);
+    const chunk = items.slice(offset, offset + MAX_BATCH_WRITES);
+
+    chunk.forEach((item) => {
+      const id = String(item?.id || "");
+      if (!id) {
+        return;
+      }
+      batch.set(doc(db, FIRESTORE_COLLECTIONS.tenants, id), item, { merge: true });
+    });
+
+    await batch.commit();
+  }
+}
+
 async function readFirestoreState() {
   if (!db) {
     return null;
@@ -57,10 +80,28 @@ async function readFirestoreState() {
   const entries = await Promise.all(
     SYNC_KEYS.map(async (key) => {
       const snapshot = await getDocs(collection(db, FIRESTORE_COLLECTIONS[key]));
-      const items = snapshot.docs.map((entry) => {
+      let items = snapshot.docs.map((entry) => {
         const payload = entry.data();
         return payload?.id ? payload : { id: entry.id, ...payload };
       });
+
+      if (key === "tenants" && items.length === 0) {
+        const legacySnapshot = await getDocs(collection(db, LEGACY_TENANTS_COLLECTION));
+        const legacyItems = legacySnapshot.docs.map((entry) => {
+          const payload = entry.data();
+          return payload?.id ? payload : { id: entry.id, ...payload };
+        });
+
+        if (legacyItems.length > 0) {
+          items = legacyItems;
+          try {
+            await migrateLegacyTenantsToAccounts(legacyItems);
+          } catch (error) {
+            console.error("Failed to migrate legacy tenants collection to accounts", error);
+          }
+        }
+      }
+
       return [key, items];
     })
   );

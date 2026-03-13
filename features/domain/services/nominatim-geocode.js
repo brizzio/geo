@@ -67,6 +67,14 @@ function unique(values = []) {
   return output;
 }
 
+const CLIENT_RETRYABLE_STATUSES = new Set([429, 500, 502, 503, 504]);
+const CLIENT_MAX_ATTEMPTS = 2;
+const CLIENT_RETRY_BACKOFF_MS = 220;
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 function applyAddressAbbreviationExpansions(value = "") {
   let next = ` ${value} `;
   const replacements = [
@@ -206,15 +214,34 @@ async function requestNominatim(query = "", countrycodes = "") {
   if (countrycodes) {
     params.set("countrycodes", countrycodes);
   }
+  let lastError = null;
 
-  const response = await fetch(`/api/nominatim/search?${params.toString()}`, { method: "GET" });
-  if (!response.ok) {
-    const details = await response.json().catch(() => ({}));
-    throw new Error(details.error || `Falha na consulta de endereco (${response.status})`);
+  for (let attempt = 1; attempt <= CLIENT_MAX_ATTEMPTS; attempt += 1) {
+    try {
+      const response = await fetch(`/api/nominatim/search?${params.toString()}`, { method: "GET" });
+      if (!response.ok) {
+        const details = await response.json().catch(() => ({}));
+        const message = details.error || `Falha na consulta de endereco (${response.status})`;
+        const error = new Error(message);
+        error.status = response.status;
+        throw error;
+      }
+
+      const items = await response.json();
+      return Array.isArray(items) ? items : [];
+    } catch (error) {
+      lastError = error;
+      const status = Number(error?.status);
+      const canRetry = CLIENT_RETRYABLE_STATUSES.has(status);
+      if (canRetry && attempt < CLIENT_MAX_ATTEMPTS) {
+        await sleep(CLIENT_RETRY_BACKOFF_MS * attempt);
+        continue;
+      }
+      throw error;
+    }
   }
 
-  const items = await response.json();
-  return Array.isArray(items) ? items : [];
+  throw lastError || new Error("Falha na consulta de endereco.");
 }
 
 export async function geocodeAddressCandidatesByQuery(query = "", countrycodes = "") {

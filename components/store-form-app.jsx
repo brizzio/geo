@@ -528,7 +528,7 @@ function StoreFormRuntime({
       }
 
       saveStore(payload);
-      router.push("/");
+      router.replace("/dashboard");
     } catch (err) {
       setError(err?.message || "Falha ao salvar loja.");
     } finally {
@@ -917,10 +917,18 @@ function StoreFormRuntime({
               ) : null}
               <button
                 type="submit"
-                className={PRIMARY_BUTTON_CLASS}
+                className={`${PRIMARY_BUTTON_CLASS} inline-flex items-center gap-1.5`}
                 disabled={saving || uploadingFacade || uploadingCompetitorLogo}
               >
-                {saving ? "Salvando..." : isEdit ? "Salvar alteracoes" : "Criar loja"}
+                {saving ? (
+                  <>
+                    <span
+                      className={"inline-block h-3 w-3 animate-spin rounded-full border border-white border-t-transparent"}
+                      aria-hidden="true"
+                    />
+                    Salvando...
+                  </>
+                ) : isEdit ? "Salvar alteracoes" : "Criar loja"}
               </button>
             </div>
           </form>

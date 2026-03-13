@@ -4,16 +4,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useDomainActions } from "../features/domain/hooks/use-domain-actions";
-import {
-  RETAIL_BANNER_NETWORK_CHANNELS,
-  RETAIL_BANNER_NETWORK_TYPES
-} from "../features/domain/models";
-import { useDomainState } from "../features/domain/state/domain-state";
 import { uploadImageToImgbb } from "../features/domain/services/imgbb-upload";
+import { useDomainState } from "../features/domain/state/domain-state";
 import {
   selectActiveTenantId,
-  selectBannerById,
-  selectNetworksByTenant,
+  selectProductById,
   selectTenants
 } from "../features/domain/state/selectors";
 
@@ -21,15 +16,28 @@ const INITIAL_FORM = {
   id: "",
   created_at: null,
   tenant_id: "",
-  network_id: "",
-  code: "",
+  internal_reference: "",
+  ean: "",
   name: "",
-  network_type: RETAIL_BANNER_NETWORK_TYPES[0]?.id || "",
-  network_channel: RETAIL_BANNER_NETWORK_CHANNELS[0]?.id || "",
   description: "",
-  logo_url: "",
-  logo: null
+  code_plu: "",
+  image_url: "",
+  image: null,
+  brand: "",
+  line: "",
+  industry_name: "",
+  presentation: "",
+  weight: "",
+  weight_unit: "",
+  volume: "",
+  volume_unit: "",
+  category: ""
 };
+
+const PRIMARY_BUTTON_CLASS =
+  "cursor-pointer rounded-md border-0 bg-slate-800 px-2.5 py-2 text-xs text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60";
+const SECONDARY_BUTTON_CLASS =
+  "cursor-pointer rounded-md border border-slate-300 bg-white px-2.5 py-2 text-xs text-slate-900 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60";
 
 function createForm(activeTenantId = "") {
   return {
@@ -38,81 +46,85 @@ function createForm(activeTenantId = "") {
   };
 }
 
-function toFormFromBanner(banner) {
-  const logo = banner.logo && typeof banner.logo === "object" ? banner.logo : null;
-  return {
-    ...createForm(),
-    id: String(banner.id),
-    created_at: banner.created_at || null,
-    tenant_id: String(banner.tenant_id || ""),
-    network_id: String(banner.network_id || ""),
-    code: banner.code || "",
-    name: banner.name || "",
-    network_type: banner.network_type || RETAIL_BANNER_NETWORK_TYPES[0]?.id || "",
-    network_channel: banner.network_channel || RETAIL_BANNER_NETWORK_CHANNELS[0]?.id || "",
-    description: banner.description || "",
-    logo_url: logo?.image_url || banner.logo_url || "",
-    logo: logo
+function toFormFromProduct(product) {
+  const image =
+    product.image && typeof product.image === "object"
       ? {
-          provider: logo.provider || "imgbb",
-          id: logo.id || null,
-          image_url: logo.image_url || banner.logo_url || null,
-          display_url: logo.display_url || logo.image_url || banner.logo_url || null,
-          thumb_url: logo.thumb_url || null,
-          medium_url: logo.medium_url || null,
-          delete_url: logo.delete_url || null
+          provider: product.image.provider || null,
+          id: product.image.id || null,
+          image_url: product.image.image_url || product.image_url || null,
+          display_url: product.image.display_url || product.image.image_url || product.image_url || null,
+          thumb_url: product.image.thumb_url || null,
+          medium_url: product.image.medium_url || null,
+          delete_url: product.image.delete_url || null
         }
-      : banner.logo_url
+      : product.image_url
         ? {
             provider: null,
             id: null,
-            image_url: banner.logo_url,
-            display_url: banner.logo_url,
+            image_url: product.image_url,
+            display_url: product.image_url,
             thumb_url: null,
             medium_url: null,
             delete_url: null
           }
-        : null
+        : null;
+
+  return {
+    ...createForm(),
+    id: String(product.id),
+    created_at: product.created_at || null,
+    tenant_id: String(product.tenant_id || ""),
+    internal_reference: product.internal_reference || "",
+    ean: product.ean || "",
+    name: product.name || "",
+    description: product.description || "",
+    code_plu: product.code_plu || "",
+    image_url: image?.image_url || product.image_url || "",
+    image,
+    brand: product.brand || "",
+    line: product.line || "",
+    industry_name: product.industry_name || "",
+    presentation: product.presentation || "",
+    weight: product.weight === null || product.weight === undefined ? "" : String(product.weight),
+    weight_unit: product.weight_unit || "",
+    volume: product.volume === null || product.volume === undefined ? "" : String(product.volume),
+    volume_unit: product.volume_unit || "",
+    category: product.category || ""
   };
 }
 
-function BannerFormRuntime({ mode = "create", bannerId = null }) {
+function ProductFormRuntime({ mode = "create", productId = null }) {
   const isEdit = mode === "edit";
-  const currentBannerId = bannerId ? String(bannerId) : null;
+  const currentProductId = productId ? String(productId) : null;
   const router = useRouter();
   const { state, hydrationDone } = useDomainState();
-  const { saveRetailBanner } = useDomainActions();
+  const { saveProduct } = useDomainActions();
 
   const tenants = useMemo(() => selectTenants(state), [state]);
   const activeTenantId = useMemo(() => selectActiveTenantId(state), [state]);
-  const bannerToEdit = useMemo(() => {
-    if (!isEdit || !currentBannerId) {
+  const productToEdit = useMemo(() => {
+    if (!isEdit || !currentProductId) {
       return null;
     }
-    return selectBannerById(state, currentBannerId);
-  }, [state, isEdit, currentBannerId]);
+    return selectProductById(state, currentProductId);
+  }, [state, isEdit, currentProductId]);
 
   const [form, setForm] = useState(() => createForm(activeTenantId));
   const [bootstrapped, setBootstrapped] = useState(!isEdit);
-  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  const networkOptions = useMemo(() => {
-    if (!form.tenant_id) {
-      return [];
-    }
-    return selectNetworksByTenant(state, form.tenant_id);
-  }, [state, form.tenant_id]);
-
-  const previewLogoUrl = useMemo(() => {
-    return form.logo?.display_url || form.logo?.image_url || form.logo_url || null;
-  }, [form.logo, form.logo_url]);
+  const imagePreviewUrl = useMemo(() => {
+    return form.image?.display_url || form.image?.image_url || form.image_url || null;
+  }, [form.image, form.image_url]);
 
   useEffect(() => {
     if (isEdit) {
       return;
     }
+
     setForm((prev) => {
       if (prev.tenant_id) {
         return prev;
@@ -125,12 +137,12 @@ function BannerFormRuntime({ mode = "create", bannerId = null }) {
   }, [activeTenantId, isEdit]);
 
   useEffect(() => {
-    if (!isEdit || !bannerToEdit) {
+    if (!isEdit || !productToEdit) {
       return;
     }
-    setForm(toFormFromBanner(bannerToEdit));
+    setForm(toFormFromProduct(productToEdit));
     setBootstrapped(true);
-  }, [isEdit, bannerToEdit]);
+  }, [isEdit, productToEdit]);
 
   function update(field, value) {
     setForm((prev) => ({
@@ -139,31 +151,24 @@ function BannerFormRuntime({ mode = "create", bannerId = null }) {
     }));
   }
 
-  function updateTenant(tenantId) {
-    setForm((prev) => ({
-      ...prev,
-      tenant_id: tenantId,
-      network_id: tenantId === prev.tenant_id ? prev.network_id : ""
-    }));
-  }
-
-  async function handleLogoFile(event) {
+  async function handleImageUpload(event) {
     const file = event.target.files?.[0];
     if (!file) {
       return;
     }
 
     setError("");
-    setUploadingLogo(true);
+    setUploadingImage(true);
 
     try {
       const result = await uploadImageToImgbb(file, {
         name: `${Date.now()}-${file.name}`
       });
+
       setForm((prev) => ({
         ...prev,
-        logo_url: result.imageUrl || result.url || "",
-        logo: {
+        image_url: result.imageUrl || result.url || "",
+        image: {
           provider: "imgbb",
           id: result.id || null,
           image_url: result.imageUrl || result.url || null,
@@ -174,9 +179,9 @@ function BannerFormRuntime({ mode = "create", bannerId = null }) {
         }
       }));
     } catch (err) {
-      setError(err?.message || "Falha no upload do logo.");
+      setError(err?.message || "Falha ao enviar imagem do produto.");
     } finally {
-      setUploadingLogo(false);
+      setUploadingImage(false);
       event.target.value = "";
     }
   }
@@ -185,14 +190,16 @@ function BannerFormRuntime({ mode = "create", bannerId = null }) {
     event.preventDefault();
     setError("");
     setSaving(true);
+
     try {
-      if (isEdit && !bannerToEdit) {
-        throw new Error("Bandeira nao encontrada para edicao.");
+      if (isEdit && !productToEdit) {
+        throw new Error("Produto nao encontrado para edicao.");
       }
-      saveRetailBanner(form);
+
+      saveProduct(form);
       router.replace("/dashboard");
     } catch (err) {
-      setError(err?.message || "Falha ao salvar bandeira.");
+      setError(err?.message || "Falha ao salvar produto.");
     } finally {
       setSaving(false);
     }
@@ -203,20 +210,20 @@ function BannerFormRuntime({ mode = "create", bannerId = null }) {
       <main className={"min-h-screen p-6 text-slate-900 bg-[radial-gradient(circle_at_12%_10%,rgba(255,208,82,0.18),transparent_32%),radial-gradient(circle_at_85%_90%,rgba(37,99,235,0.16),transparent_40%),linear-gradient(180deg,#f7f7f8_0%,#f0f2f5_100%)]"}>
         <div className={"mx-auto grid max-w-[1440px] gap-4"}>
           <section className={"grid gap-2.5 rounded-xl border border-slate-900/10 bg-white/90 p-[14px]"}>
-            <h2 className={"m-0 text-lg"}>Carregando bandeira...</h2>
+            <h2 className={"m-0 text-lg"}>Carregando produto...</h2>
           </section>
         </div>
       </main>
     );
   }
 
-  if (isEdit && hydrationDone && !bannerToEdit) {
+  if (isEdit && hydrationDone && !productToEdit) {
     return (
       <main className={"min-h-screen p-6 text-slate-900 bg-[radial-gradient(circle_at_12%_10%,rgba(255,208,82,0.18),transparent_32%),radial-gradient(circle_at_85%_90%,rgba(37,99,235,0.16),transparent_40%),linear-gradient(180deg,#f7f7f8_0%,#f0f2f5_100%)]"}>
         <div className={"mx-auto grid max-w-[1440px] gap-4"}>
           <section className={"grid gap-2.5 rounded-xl border border-slate-900/10 bg-white/90 p-[14px]"}>
-            <h2 className={"m-0 text-lg"}>Bandeira nao encontrada</h2>
-            <p className={"m-0 text-xs opacity-70"}>A bandeira foi removida ou o ID informado e invalido.</p>
+            <h2 className={"m-0 text-lg"}>Produto nao encontrado</h2>
+            <p className={"m-0 text-xs opacity-70"}>O produto foi removido ou o ID informado e invalido.</p>
             <div className={"flex flex-wrap gap-2"}>
               <Link href="/dashboard" className={"inline-flex items-center justify-center rounded-lg border border-slate-900 bg-slate-900 px-3 py-2.5 text-[13px] text-white no-underline"}>
                 Voltar ao dashboard
@@ -245,9 +252,9 @@ function BannerFormRuntime({ mode = "create", bannerId = null }) {
       <div className={"mx-auto grid max-w-[1440px] gap-4"}>
         <header className={"flex items-center justify-between gap-4 rounded-[14px] bg-white/[0.85] px-5 py-[18px] shadow-[0_10px_20px_rgba(15,23,42,0.08)]"}>
           <div>
-            <h1 className={"m-0 text-[30px] tracking-[0.5px]"}>{isEdit ? "Editar Bandeira" : "Criar Bandeira"}</h1>
+            <h1 className={"m-0 text-[30px] tracking-[0.5px]"}>{isEdit ? "Editar Produto" : "Criar Produto"}</h1>
             <p className={"mb-0 mt-1 text-sm [opacity:0.85]"}>
-              Cadastro com tipo de rede, canal e upload de logo via imgbb.
+              Cadastro de catalogo para uso em pesquisas.
             </p>
           </div>
           <div className={"flex flex-wrap items-center gap-2"}>
@@ -258,14 +265,14 @@ function BannerFormRuntime({ mode = "create", bannerId = null }) {
         </header>
 
         <section className={"grid gap-2.5 rounded-xl border border-slate-900/10 bg-white/90 p-[14px]"}>
-          <h2 className={"m-0 text-lg"}>Formulario de Bandeira</h2>
+          <h2 className={"m-0 text-lg"}>Formulario de Produto</h2>
           <form onSubmit={submit} className={"grid gap-2"}>
             <div className={"grid grid-cols-3 gap-2 max-[980px]:grid-cols-1"}>
               <label className={"grid gap-1 text-xs [&>input]:w-full [&>input]:rounded-md [&>input]:border [&>input]:border-slate-300 [&>input]:bg-white [&>input]:p-2 [&>input]:text-[13px] [&>select]:w-full [&>select]:rounded-md [&>select]:border [&>select]:border-slate-300 [&>select]:bg-white [&>select]:p-2 [&>select]:text-[13px] [&>textarea]:w-full [&>textarea]:min-h-[70px] [&>textarea]:rounded-md [&>textarea]:border [&>textarea]:border-slate-300 [&>textarea]:bg-white [&>textarea]:p-2 [&>textarea]:text-[13px]"}>
                 <span>Conta</span>
                 <select
                   value={form.tenant_id}
-                  onChange={(e) => updateTenant(e.target.value)}
+                  onChange={(e) => update("tenant_id", e.target.value)}
                   disabled={isEdit}
                   required
                 >
@@ -278,115 +285,162 @@ function BannerFormRuntime({ mode = "create", bannerId = null }) {
                 </select>
               </label>
               <label className={"grid gap-1 text-xs [&>input]:w-full [&>input]:rounded-md [&>input]:border [&>input]:border-slate-300 [&>input]:bg-white [&>input]:p-2 [&>input]:text-[13px] [&>select]:w-full [&>select]:rounded-md [&>select]:border [&>select]:border-slate-300 [&>select]:bg-white [&>select]:p-2 [&>select]:text-[13px] [&>textarea]:w-full [&>textarea]:min-h-[70px] [&>textarea]:rounded-md [&>textarea]:border [&>textarea]:border-slate-300 [&>textarea]:bg-white [&>textarea]:p-2 [&>textarea]:text-[13px]"}>
-                <span>Rede</span>
-                <select
-                  value={form.network_id}
-                  onChange={(e) => update("network_id", e.target.value)}
-                  disabled={isEdit || !form.tenant_id || networkOptions.length === 0}
+                <span>Nome</span>
+                <input
+                  value={form.name}
+                  onChange={(e) => update("name", e.target.value)}
+                  placeholder="Nome do produto"
                   required
-                >
-                  <option value="">Selecione...</option>
-                  {networkOptions.map((network) => (
-                    <option key={network.id} value={network.id}>
-                      {network.name}
-                    </option>
-                  ))}
-                </select>
+                />
               </label>
               <label className={"grid gap-1 text-xs [&>input]:w-full [&>input]:rounded-md [&>input]:border [&>input]:border-slate-300 [&>input]:bg-white [&>input]:p-2 [&>input]:text-[13px] [&>select]:w-full [&>select]:rounded-md [&>select]:border [&>select]:border-slate-300 [&>select]:bg-white [&>select]:p-2 [&>select]:text-[13px] [&>textarea]:w-full [&>textarea]:min-h-[70px] [&>textarea]:rounded-md [&>textarea]:border [&>textarea]:border-slate-300 [&>textarea]:bg-white [&>textarea]:p-2 [&>textarea]:text-[13px]"}>
-                <span>Codigo</span>
+                <span>Categoria</span>
                 <input
-                  value={form.code}
-                  onChange={(e) => update("code", e.target.value)}
-                  placeholder="Ex: BAN_A"
+                  value={form.category}
+                  onChange={(e) => update("category", e.target.value)}
+                  placeholder="Categoria"
                 />
               </label>
             </div>
 
-            {form.tenant_id && networkOptions.length === 0 ? (
-              <p className={"m-0 text-xs opacity-70"}>
-                Nenhuma rede disponivel para esta conta. Crie uma rede antes em{" "}
-                <Link href="/networks/new">/networks/new</Link>.
-              </p>
-            ) : null}
-
             {isEdit ? (
               <label className={"grid gap-1 text-xs [&>input]:w-full [&>input]:rounded-md [&>input]:border [&>input]:border-slate-300 [&>input]:bg-white [&>input]:p-2 [&>input]:text-[13px] [&>select]:w-full [&>select]:rounded-md [&>select]:border [&>select]:border-slate-300 [&>select]:bg-white [&>select]:p-2 [&>select]:text-[13px] [&>textarea]:w-full [&>textarea]:min-h-[70px] [&>textarea]:rounded-md [&>textarea]:border [&>textarea]:border-slate-300 [&>textarea]:bg-white [&>textarea]:p-2 [&>textarea]:text-[13px]"}>
-                <span>ID da bandeira</span>
+                <span>ID do produto</span>
                 <input value={form.id} readOnly />
               </label>
             ) : null}
 
-            <div className={"grid grid-cols-2 gap-2 max-[980px]:grid-cols-1"}>
+            <div className={"grid grid-cols-3 gap-2 max-[980px]:grid-cols-1"}>
               <label className={"grid gap-1 text-xs [&>input]:w-full [&>input]:rounded-md [&>input]:border [&>input]:border-slate-300 [&>input]:bg-white [&>input]:p-2 [&>input]:text-[13px] [&>select]:w-full [&>select]:rounded-md [&>select]:border [&>select]:border-slate-300 [&>select]:bg-white [&>select]:p-2 [&>select]:text-[13px] [&>textarea]:w-full [&>textarea]:min-h-[70px] [&>textarea]:rounded-md [&>textarea]:border [&>textarea]:border-slate-300 [&>textarea]:bg-white [&>textarea]:p-2 [&>textarea]:text-[13px]"}>
-                <span>Nome da bandeira</span>
+                <span>Referencia interna</span>
                 <input
-                  value={form.name}
-                  onChange={(e) => update("name", e.target.value)}
-                  placeholder="Nome da bandeira"
-                  required
+                  value={form.internal_reference}
+                  onChange={(e) => update("internal_reference", e.target.value)}
+                  placeholder="SKU interno"
                 />
               </label>
               <label className={"grid gap-1 text-xs [&>input]:w-full [&>input]:rounded-md [&>input]:border [&>input]:border-slate-300 [&>input]:bg-white [&>input]:p-2 [&>input]:text-[13px] [&>select]:w-full [&>select]:rounded-md [&>select]:border [&>select]:border-slate-300 [&>select]:bg-white [&>select]:p-2 [&>select]:text-[13px] [&>textarea]:w-full [&>textarea]:min-h-[70px] [&>textarea]:rounded-md [&>textarea]:border [&>textarea]:border-slate-300 [&>textarea]:bg-white [&>textarea]:p-2 [&>textarea]:text-[13px]"}>
-                <span>Descricao</span>
+                <span>EAN</span>
                 <input
-                  value={form.description}
-                  onChange={(e) => update("description", e.target.value)}
-                  placeholder="Opcional"
+                  value={form.ean}
+                  onChange={(e) => update("ean", e.target.value)}
+                  placeholder="Codigo de barras"
+                />
+              </label>
+              <label className={"grid gap-1 text-xs [&>input]:w-full [&>input]:rounded-md [&>input]:border [&>input]:border-slate-300 [&>input]:bg-white [&>input]:p-2 [&>input]:text-[13px] [&>select]:w-full [&>select]:rounded-md [&>select]:border [&>select]:border-slate-300 [&>select]:bg-white [&>select]:p-2 [&>select]:text-[13px] [&>textarea]:w-full [&>textarea]:min-h-[70px] [&>textarea]:rounded-md [&>textarea]:border [&>textarea]:border-slate-300 [&>textarea]:bg-white [&>textarea]:p-2 [&>textarea]:text-[13px]"}>
+                <span>Codigo PLU</span>
+                <input
+                  value={form.code_plu}
+                  onChange={(e) => update("code_plu", e.target.value)}
+                  placeholder="PLU"
                 />
               </label>
             </div>
 
-            <div className={"grid grid-cols-2 gap-2 max-[980px]:grid-cols-1"}>
+            <div className={"grid grid-cols-3 gap-2 max-[980px]:grid-cols-1"}>
               <label className={"grid gap-1 text-xs [&>input]:w-full [&>input]:rounded-md [&>input]:border [&>input]:border-slate-300 [&>input]:bg-white [&>input]:p-2 [&>input]:text-[13px] [&>select]:w-full [&>select]:rounded-md [&>select]:border [&>select]:border-slate-300 [&>select]:bg-white [&>select]:p-2 [&>select]:text-[13px] [&>textarea]:w-full [&>textarea]:min-h-[70px] [&>textarea]:rounded-md [&>textarea]:border [&>textarea]:border-slate-300 [&>textarea]:bg-white [&>textarea]:p-2 [&>textarea]:text-[13px]"}>
-                <span>Tipo de rede</span>
-                <select
-                  value={form.network_type}
-                  onChange={(e) => update("network_type", e.target.value)}
-                  required
-                >
-                  {RETAIL_BANNER_NETWORK_TYPES.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.name}
-                    </option>
-                  ))}
-                </select>
+                <span>Marca</span>
+                <input
+                  value={form.brand}
+                  onChange={(e) => update("brand", e.target.value)}
+                  placeholder="Marca"
+                />
               </label>
               <label className={"grid gap-1 text-xs [&>input]:w-full [&>input]:rounded-md [&>input]:border [&>input]:border-slate-300 [&>input]:bg-white [&>input]:p-2 [&>input]:text-[13px] [&>select]:w-full [&>select]:rounded-md [&>select]:border [&>select]:border-slate-300 [&>select]:bg-white [&>select]:p-2 [&>select]:text-[13px] [&>textarea]:w-full [&>textarea]:min-h-[70px] [&>textarea]:rounded-md [&>textarea]:border [&>textarea]:border-slate-300 [&>textarea]:bg-white [&>textarea]:p-2 [&>textarea]:text-[13px]"}>
-                <span>Canal</span>
-                <select
-                  value={form.network_channel}
-                  onChange={(e) => update("network_channel", e.target.value)}
-                  required
-                >
-                  {RETAIL_BANNER_NETWORK_CHANNELS.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.name}
-                    </option>
-                  ))}
-                </select>
+                <span>Linha</span>
+                <input
+                  value={form.line}
+                  onChange={(e) => update("line", e.target.value)}
+                  placeholder="Linha do produto"
+                />
+              </label>
+              <label className={"grid gap-1 text-xs [&>input]:w-full [&>input]:rounded-md [&>input]:border [&>input]:border-slate-300 [&>input]:bg-white [&>input]:p-2 [&>input]:text-[13px] [&>select]:w-full [&>select]:rounded-md [&>select]:border [&>select]:border-slate-300 [&>select]:bg-white [&>select]:p-2 [&>select]:text-[13px] [&>textarea]:w-full [&>textarea]:min-h-[70px] [&>textarea]:rounded-md [&>textarea]:border [&>textarea]:border-slate-300 [&>textarea]:bg-white [&>textarea]:p-2 [&>textarea]:text-[13px]"}>
+                <span>Industria</span>
+                <input
+                  value={form.industry_name}
+                  onChange={(e) => update("industry_name", e.target.value)}
+                  placeholder="Industria"
+                />
               </label>
             </div>
 
+            <div className={"grid grid-cols-5 gap-2 max-[980px]:grid-cols-1"}>
+              <label className={"grid gap-1 text-xs [&>input]:w-full [&>input]:rounded-md [&>input]:border [&>input]:border-slate-300 [&>input]:bg-white [&>input]:p-2 [&>input]:text-[13px] [&>select]:w-full [&>select]:rounded-md [&>select]:border [&>select]:border-slate-300 [&>select]:bg-white [&>select]:p-2 [&>select]:text-[13px] [&>textarea]:w-full [&>textarea]:min-h-[70px] [&>textarea]:rounded-md [&>textarea]:border [&>textarea]:border-slate-300 [&>textarea]:bg-white [&>textarea]:p-2 [&>textarea]:text-[13px]"}>
+                <span>Apresentacao</span>
+                <input
+                  value={form.presentation}
+                  onChange={(e) => update("presentation", e.target.value)}
+                  placeholder="Ex: Garrafa"
+                />
+              </label>
+              <label className={"grid gap-1 text-xs [&>input]:w-full [&>input]:rounded-md [&>input]:border [&>input]:border-slate-300 [&>input]:bg-white [&>input]:p-2 [&>input]:text-[13px] [&>select]:w-full [&>select]:rounded-md [&>select]:border [&>select]:border-slate-300 [&>select]:bg-white [&>select]:p-2 [&>select]:text-[13px] [&>textarea]:w-full [&>textarea]:min-h-[70px] [&>textarea]:rounded-md [&>textarea]:border [&>textarea]:border-slate-300 [&>textarea]:bg-white [&>textarea]:p-2 [&>textarea]:text-[13px]"}>
+                <span>Peso</span>
+                <input
+                  type="number"
+                  step="0.001"
+                  min="0"
+                  value={form.weight}
+                  onChange={(e) => update("weight", e.target.value)}
+                  placeholder="0.000"
+                />
+              </label>
+              <label className={"grid gap-1 text-xs [&>input]:w-full [&>input]:rounded-md [&>input]:border [&>input]:border-slate-300 [&>input]:bg-white [&>input]:p-2 [&>input]:text-[13px] [&>select]:w-full [&>select]:rounded-md [&>select]:border [&>select]:border-slate-300 [&>select]:bg-white [&>select]:p-2 [&>select]:text-[13px] [&>textarea]:w-full [&>textarea]:min-h-[70px] [&>textarea]:rounded-md [&>textarea]:border [&>textarea]:border-slate-300 [&>textarea]:bg-white [&>textarea]:p-2 [&>textarea]:text-[13px]"}>
+                <span>Unidade peso</span>
+                <input
+                  value={form.weight_unit}
+                  onChange={(e) => update("weight_unit", e.target.value)}
+                  placeholder="kg, g"
+                />
+              </label>
+              <label className={"grid gap-1 text-xs [&>input]:w-full [&>input]:rounded-md [&>input]:border [&>input]:border-slate-300 [&>input]:bg-white [&>input]:p-2 [&>input]:text-[13px] [&>select]:w-full [&>select]:rounded-md [&>select]:border [&>select]:border-slate-300 [&>select]:bg-white [&>select]:p-2 [&>select]:text-[13px] [&>textarea]:w-full [&>textarea]:min-h-[70px] [&>textarea]:rounded-md [&>textarea]:border [&>textarea]:border-slate-300 [&>textarea]:bg-white [&>textarea]:p-2 [&>textarea]:text-[13px]"}>
+                <span>Volume</span>
+                <input
+                  type="number"
+                  step="0.001"
+                  min="0"
+                  value={form.volume}
+                  onChange={(e) => update("volume", e.target.value)}
+                  placeholder="0.000"
+                />
+              </label>
+              <label className={"grid gap-1 text-xs [&>input]:w-full [&>input]:rounded-md [&>input]:border [&>input]:border-slate-300 [&>input]:bg-white [&>input]:p-2 [&>input]:text-[13px] [&>select]:w-full [&>select]:rounded-md [&>select]:border [&>select]:border-slate-300 [&>select]:bg-white [&>select]:p-2 [&>select]:text-[13px] [&>textarea]:w-full [&>textarea]:min-h-[70px] [&>textarea]:rounded-md [&>textarea]:border [&>textarea]:border-slate-300 [&>textarea]:bg-white [&>textarea]:p-2 [&>textarea]:text-[13px]"}>
+                <span>Unidade volume</span>
+                <input
+                  value={form.volume_unit}
+                  onChange={(e) => update("volume_unit", e.target.value)}
+                  placeholder="L, ml"
+                />
+              </label>
+            </div>
+
+            <label className={"grid gap-1 text-xs [&>input]:w-full [&>input]:rounded-md [&>input]:border [&>input]:border-slate-300 [&>input]:bg-white [&>input]:p-2 [&>input]:text-[13px] [&>select]:w-full [&>select]:rounded-md [&>select]:border [&>select]:border-slate-300 [&>select]:bg-white [&>select]:p-2 [&>select]:text-[13px] [&>textarea]:w-full [&>textarea]:min-h-[70px] [&>textarea]:rounded-md [&>textarea]:border [&>textarea]:border-slate-300 [&>textarea]:bg-white [&>textarea]:p-2 [&>textarea]:text-[13px]"}>
+              <span>Descricao</span>
+              <textarea
+                value={form.description}
+                onChange={(e) => update("description", e.target.value)}
+                placeholder="Descricao opcional"
+              />
+            </label>
+
             <div className={"grid grid-cols-2 gap-2 max-[980px]:grid-cols-1"}>
               <label className={"grid gap-1 text-xs [&>input]:w-full [&>input]:rounded-md [&>input]:border [&>input]:border-slate-300 [&>input]:bg-white [&>input]:p-2 [&>input]:text-[13px] [&>select]:w-full [&>select]:rounded-md [&>select]:border [&>select]:border-slate-300 [&>select]:bg-white [&>select]:p-2 [&>select]:text-[13px] [&>textarea]:w-full [&>textarea]:min-h-[70px] [&>textarea]:rounded-md [&>textarea]:border [&>textarea]:border-slate-300 [&>textarea]:bg-white [&>textarea]:p-2 [&>textarea]:text-[13px]"}>
-                <span>Logo URL</span>
+                <span>Imagem URL</span>
                 <input
-                  value={form.logo_url}
+                  value={form.image_url}
                   onChange={(e) => {
                     const next = e.target.value;
                     setForm((prev) => ({
                       ...prev,
-                      logo_url: next,
-                      logo: next
+                      image_url: next,
+                      image: next
                         ? {
-                            provider: prev.logo?.provider || null,
-                            id: prev.logo?.id || null,
+                            provider: prev.image?.provider || null,
+                            id: prev.image?.id || null,
                             image_url: next,
                             display_url: next,
-                            thumb_url: prev.logo?.thumb_url || null,
-                            medium_url: prev.logo?.medium_url || null,
-                            delete_url: prev.logo?.delete_url || null
+                            thumb_url: prev.image?.thumb_url || null,
+                            medium_url: prev.image?.medium_url || null,
+                            delete_url: prev.image?.delete_url || null
                           }
                         : null
                     }));
@@ -395,17 +449,17 @@ function BannerFormRuntime({ mode = "create", bannerId = null }) {
                 />
               </label>
               <label className={"grid gap-1 text-xs [&>input]:w-full [&>input]:rounded-md [&>input]:border [&>input]:border-slate-300 [&>input]:bg-white [&>input]:p-2 [&>input]:text-[13px] [&>select]:w-full [&>select]:rounded-md [&>select]:border [&>select]:border-slate-300 [&>select]:bg-white [&>select]:p-2 [&>select]:text-[13px] [&>textarea]:w-full [&>textarea]:min-h-[70px] [&>textarea]:rounded-md [&>textarea]:border [&>textarea]:border-slate-300 [&>textarea]:bg-white [&>textarea]:p-2 [&>textarea]:text-[13px]"}>
-                <span>Upload de logo (imgbb)</span>
-                <input type="file" accept="image/*" onChange={handleLogoFile} disabled={uploadingLogo} />
+                <span>Upload imagem (imgbb)</span>
+                <input type="file" accept="image/*" onChange={handleImageUpload} disabled={uploadingImage} />
               </label>
             </div>
 
-            {previewLogoUrl ? (
+            {imagePreviewUrl ? (
               <div className={"grid gap-1 text-xs [&>input]:w-full [&>input]:rounded-md [&>input]:border [&>input]:border-slate-300 [&>input]:bg-white [&>input]:p-2 [&>input]:text-[13px] [&>select]:w-full [&>select]:rounded-md [&>select]:border [&>select]:border-slate-300 [&>select]:bg-white [&>select]:p-2 [&>select]:text-[13px] [&>textarea]:w-full [&>textarea]:min-h-[70px] [&>textarea]:rounded-md [&>textarea]:border [&>textarea]:border-slate-300 [&>textarea]:bg-white [&>textarea]:p-2 [&>textarea]:text-[13px]"}>
-                <span>Preview do logo</span>
+                <span>Preview da imagem</span>
                 <img
-                  src={previewLogoUrl}
-                  alt={`Logo ${form.name || "bandeira"}`}
+                  src={imagePreviewUrl}
+                  alt={`Imagem ${form.name || "produto"}`}
                   style={{
                     width: 140,
                     height: 140,
@@ -423,19 +477,23 @@ function BannerFormRuntime({ mode = "create", bannerId = null }) {
             <div className={"flex flex-wrap gap-2"}>
               <button
                 type="button"
-                className={`${"cursor-pointer rounded-md border-0 bg-slate-800 px-2.5 py-2 text-xs text-white"} ${"border border-slate-300 bg-white text-slate-900"}`}
+                className={SECONDARY_BUTTON_CLASS}
                 onClick={() =>
                   setForm((prev) => ({
                     ...prev,
-                    logo_url: "",
-                    logo: null
+                    image_url: "",
+                    image: null
                   }))
                 }
-                disabled={!form.logo_url && !form.logo}
+                disabled={!form.image_url && !form.image}
               >
-                Remover logo
+                Remover imagem
               </button>
-              <button type="submit" className={"inline-flex cursor-pointer items-center gap-1.5 rounded-md border-0 bg-slate-800 px-2.5 py-2 text-xs text-white"} disabled={saving || uploadingLogo}>
+              <button
+                type="submit"
+                className={`${PRIMARY_BUTTON_CLASS} inline-flex items-center gap-1.5`}
+                disabled={saving || uploadingImage}
+              >
                 {saving ? (
                   <>
                     <span
@@ -444,7 +502,7 @@ function BannerFormRuntime({ mode = "create", bannerId = null }) {
                     />
                     Salvando...
                   </>
-                ) : isEdit ? "Salvar alteracoes" : "Criar bandeira"}
+                ) : isEdit ? "Salvar alteracoes" : "Criar produto"}
               </button>
             </div>
           </form>
@@ -454,8 +512,6 @@ function BannerFormRuntime({ mode = "create", bannerId = null }) {
   );
 }
 
-export default function BannerFormApp({ mode = "create", bannerId = null }) {
-  return <BannerFormRuntime mode={mode} bannerId={bannerId} />;
+export default function ProductFormApp({ mode = "create", productId = null }) {
+  return <ProductFormRuntime mode={mode} productId={productId} />;
 }
-
-

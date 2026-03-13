@@ -9,6 +9,7 @@ import StoreSection from "../features/dashboard/components/store-section";
 import CompetitorSection from "../features/dashboard/components/competitor-section";
 import ClusterSection from "../features/dashboard/components/cluster-section";
 import PriceResearchSection from "../features/dashboard/components/price-research-section";
+import ProductSection from "../features/dashboard/components/product-section";
 import { useDomainActions } from "../features/domain/hooks/use-domain-actions";
 import { STORE_KINDS } from "../features/domain/models";
 import { useDomainState } from "../features/domain/state/domain-state";
@@ -18,6 +19,7 @@ import {
   selectBannersByTenant,
   selectClustersByTenant,
   selectNetworksByTenant,
+  selectProductsByTenant,
   selectPriceResearchesByTenant,
   selectStoresByKind,
   selectStoresByTenant,
@@ -86,6 +88,10 @@ function useDomainCollections() {
     () => (activeTenantId ? selectPriceResearchesByTenant(state, activeTenantId) : []),
     [state, activeTenantId]
   );
+  const products = useMemo(
+    () => (activeTenantId ? selectProductsByTenant(state, activeTenantId) : []),
+    [state, activeTenantId]
+  );
 
   return {
     actions,
@@ -98,7 +104,8 @@ function useDomainCollections() {
     ownStores,
     competitorStores,
     clusters,
-    priceResearches
+    priceResearches,
+    products
   };
 }
 
@@ -240,6 +247,24 @@ export function ResearchesListApp() {
         clusters={clusters}
         priceResearches={priceResearches}
         onDelete={removePriceResearch}
+      />
+    </SectionPageShell>
+  );
+}
+
+export function ProductsListApp() {
+  const { actions, activeTenant, activeTenantId, products } = useDomainCollections();
+  const { removeProduct } = actions;
+
+  return (
+    <SectionPageShell
+      title="PRODUTOS"
+      description={`CONTA ativa: ${activeTenant?.name || "nenhuma selecionada"}`}
+    >
+      <ProductSection
+        tenantId={activeTenantId}
+        products={products}
+        onDelete={removeProduct}
       />
     </SectionPageShell>
   );

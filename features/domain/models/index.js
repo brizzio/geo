@@ -14,5 +14,7 @@ export {
 export { createClusterModel } from "./cluster-model";
 export {
   createPriceResearchModel,
-  createPriceResearchProductModel
+  RESEARCH_SERVICE_STATUSES,
+  RESEARCH_SERVICE_WEEKDAYS
 } from "./price-research-model";
+export { createProductModel } from "./product-model";

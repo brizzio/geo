@@ -270,7 +270,7 @@ function NetworkFormRuntime({ mode = "create", networkId = null }) {
       }
 
       saveNetwork(payload);
-      router.push("/");
+      router.replace("/dashboard");
     } catch (err) {
       setError(err?.message || "Falha ao salvar rede.");
     } finally {
@@ -437,8 +437,16 @@ function NetworkFormRuntime({ mode = "create", networkId = null }) {
             {error ? <p className={"m-0 rounded-lg border border-red-200 bg-red-50 p-2 text-xs text-red-800"}>{error}</p> : null}
 
             <div className={"flex flex-wrap gap-2"}>
-              <button type="submit" className={PRIMARY_BUTTON_CLASS} disabled={saving}>
-                {saving ? "Salvando..." : isEdit ? "Salvar alteracoes" : "Criar rede"}
+              <button type="submit" className={`${PRIMARY_BUTTON_CLASS} inline-flex items-center gap-1.5`} disabled={saving}>
+                {saving ? (
+                  <>
+                    <span
+                      className={"inline-block h-3 w-3 animate-spin rounded-full border border-white border-t-transparent"}
+                      aria-hidden="true"
+                    />
+                    Salvando...
+                  </>
+                ) : isEdit ? "Salvar alteracoes" : "Criar rede"}
               </button>
             </div>
           </form>

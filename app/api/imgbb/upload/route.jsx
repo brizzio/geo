@@ -1,6 +1,17 @@
 import { NextResponse } from "next/server";
 
 const IMGBB_UPLOAD_URL = "https://api.imgbb.com/1/upload";
+const MAX_IMAGE_UPLOAD_BYTES = 32 * 1024 * 1024;
+
+function estimateBase64Bytes(value = "") {
+  const normalized = String(value || "")
+    .replace(/^data:[^;]+;base64,/, "")
+    .replace(/\s+/g, "");
+  if (!normalized) {
+    return 0;
+  }
+  return Math.floor((normalized.length * 3) / 4);
+}
 
 function resolveApiKey() {
   const direct = process.env.IMGBB_KEY || process.env.IMGBB_API_KEY;
@@ -33,6 +44,24 @@ export async function POST(request) {
 
     if (!image) {
       return NextResponse.json({ error: "Arquivo de imagem e obrigatorio." }, { status: 400 });
+    }
+
+    const isBlobLike = typeof image === "object" && typeof image?.size === "number";
+    if (isBlobLike && image.size > MAX_IMAGE_UPLOAD_BYTES) {
+      return NextResponse.json(
+        { error: "Imagem excede o limite de 32 MB." },
+        { status: 413 }
+      );
+    }
+
+    if (typeof image === "string") {
+      const estimatedBytes = estimateBase64Bytes(image);
+      if (estimatedBytes > MAX_IMAGE_UPLOAD_BYTES) {
+        return NextResponse.json(
+          { error: "Imagem excede o limite de 32 MB." },
+          { status: 413 }
+        );
+      }
     }
 
     const upstream = new URL(IMGBB_UPLOAD_URL);

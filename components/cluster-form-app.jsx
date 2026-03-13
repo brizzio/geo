@@ -299,7 +299,7 @@ function ClusterFormRuntime({ mode = "create", clusterId = null }) {
         levels: form.levels,
         competitor_groups: competitorGroups
       });
-      router.push("/");
+      router.replace("/dashboard");
     } catch (err) {
       setError(err?.message || "Falha ao salvar cluster.");
     } finally {
@@ -500,8 +500,16 @@ function ClusterFormRuntime({ mode = "create", clusterId = null }) {
 
             {error ? <p className={"m-0 rounded-lg border border-red-200 bg-red-50 p-2 text-xs text-red-800"}>{error}</p> : null}
             <div className={"flex flex-wrap gap-2"}>
-              <button type="submit" className={"cursor-pointer rounded-md border-0 bg-slate-800 px-2.5 py-2 text-xs text-white"} disabled={saving}>
-                {saving ? "Salvando..." : isEdit ? "Salvar alteracoes" : "Criar cluster"}
+              <button type="submit" className={"inline-flex cursor-pointer items-center gap-1.5 rounded-md border-0 bg-slate-800 px-2.5 py-2 text-xs text-white"} disabled={saving}>
+                {saving ? (
+                  <>
+                    <span
+                      className={"inline-block h-3 w-3 animate-spin rounded-full border border-white border-t-transparent"}
+                      aria-hidden="true"
+                    />
+                    Salvando...
+                  </>
+                ) : isEdit ? "Salvar alteracoes" : "Criar cluster"}
               </button>
             </div>
           </form>

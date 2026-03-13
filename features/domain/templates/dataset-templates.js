@@ -199,10 +199,46 @@ export function competitorStoresTemplate(
   };
 }
 
+export function productsTemplate(tenantId = "tenant_demo_1") {
+  return {
+    ...base("products"),
+    tenant_id: tenantId,
+    items: [
+      {
+        id: "product_demo_1",
+        tenant_id: tenantId,
+        internal_reference: "SKU-DEMO-001",
+        ean: "7891000100103",
+        name: "Produto Exemplo 1",
+        description: "Produto de exemplo para carga inicial",
+        code_plu: "1001",
+        image: {
+          provider: "imgbb",
+          id: "demo_product_img_1",
+          image_url: "https://example.com/product-1.jpg",
+          display_url: "https://example.com/product-1-display.jpg",
+          thumb_url: "https://example.com/product-1-thumb.jpg",
+          medium_url: "https://example.com/product-1-medium.jpg",
+          delete_url: "https://example.com/product-1-delete"
+        },
+        image_url: "https://example.com/product-1.jpg",
+        brand: "Marca Demo",
+        line: "Linha Demo",
+        industry_name: "Industria Demo",
+        presentation: "Pacote",
+        weight: 1,
+        weight_unit: "kg",
+        volume: 0.5,
+        volume_unit: "L",
+        category: "Mercearia"
+      }
+    ]
+  };
+}
+
 export function priceResearchesTemplate(
   tenantId = "tenant_demo_1",
-  clusterId = "cluster_demo_1",
-  competitorStoreId = "store_comp_demo_1"
+  clusterId = "cluster_demo_1"
 ) {
   return {
     ...base("price_researches"),
@@ -212,24 +248,27 @@ export function priceResearchesTemplate(
         id: "research_demo_1",
         tenant_id: tenantId,
         cluster_id: clusterId,
-        name: "Pesquisa Semanal 01",
+        name: "Servico Semanal 01",
+        status: "ACTIVE",
         start_date: "2026-02-23",
-        end_date: "2026-02-23",
-        start_time: "08:00",
-        end_time: "18:00",
-        competitor_store_ids: [competitorStoreId],
-        products: [
+        duration_days: 30,
+        is_duration_indefinite: false,
+        recurrence_enabled: true,
+        recurrence_weekdays: ["TUESDAY"],
+        same_product_list_for_all_levels: true,
+        default_product_ids: ["product_demo_1"],
+        level_product_lists: [
           {
-            id: "research_item_demo_1",
-            gtin: "7891000100103",
-            name: "Produto Exemplo 1",
-            category: "Mercearia"
+            level_id: "level_1",
+            product_ids: ["product_demo_1"]
           },
           {
-            id: "research_item_demo_2",
-            gtin: "7891000100104",
-            name: "Produto Exemplo 2",
-            category: "Bebidas"
+            level_id: "level_2",
+            product_ids: ["product_demo_1"]
+          },
+          {
+            level_id: "level_3",
+            product_ids: ["product_demo_1"]
           }
         ]
       }
