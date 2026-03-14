@@ -85,6 +85,12 @@ export default function ProductSection({ tenantId, products, onDelete }) {
                   >
                     Editar
                   </Link>
+                  <Link
+                    href={`/products/${product.id}/clone`}
+                    className={"inline-flex items-center justify-center rounded-lg border border-emerald-700 bg-emerald-700 px-3 py-2.5 text-[13px] text-white no-underline"}
+                  >
+                    Clonar
+                  </Link>
                   <button
                     type="button"
                     className={`${"cursor-pointer rounded-md border-0 bg-slate-800 px-2.5 py-2 text-xs text-white"} ${"bg-red-700"}`}

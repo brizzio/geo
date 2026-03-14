@@ -72,6 +72,32 @@ export function createProductModel(values = {}) {
     line: normalizeText(values.line),
     industry_name: normalizeText(values.industry_name),
     presentation: normalizeText(values.presentation),
+    package_type: normalizeText(values.package_type),
+    package_model: normalizeText(values.package_model),
+    package_material: normalizeText(values.package_material),
+    package_format: normalizeText(values.package_format),
+    package_dimensions_unit: normalizeText(values.package_dimensions_unit) || "cm",
+    package_dimensions_height: normalizeNonNegativeNumber(
+      values.package_dimensions_height,
+      "Altura da embalagem"
+    ),
+    package_dimensions_width: normalizeNonNegativeNumber(
+      values.package_dimensions_width,
+      "Largura da embalagem"
+    ),
+    package_dimensions_depth: normalizeNonNegativeNumber(
+      values.package_dimensions_depth,
+      "Profundidade da embalagem"
+    ),
+    package_weight_unit: normalizeText(values.package_weight_unit),
+    package_gross_weight: normalizeNonNegativeNumber(
+      values.package_gross_weight,
+      "Peso bruto da embalagem"
+    ),
+    package_net_weight: normalizeNonNegativeNumber(
+      values.package_net_weight,
+      "Peso liquido da embalagem"
+    ),
     weight: normalizeNonNegativeNumber(values.weight, "Peso"),
     weight_unit: normalizeText(values.weight_unit),
     volume: normalizeNonNegativeNumber(values.volume, "Volume"),

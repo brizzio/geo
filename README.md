@@ -82,8 +82,9 @@ Observacao de UI:
 - no sistema interno o nome tecnico continua `tenant`
 - na interface do dashboard o rotulo exibido e `CONTA`
 - existe uma sidebar global com atalhos para dashboard e modulos principais (`conta`, `redes`, `bandeira`, `lojas`, `concorrentes`, `clusters`, `pesquisas`)
-- o dashboard (`/`) agora exibe somente cabecalho e contadores; os cards de cadastro/listagem ficam nas paginas dedicadas do menu lateral
+- o dashboard (`/dashboard`) exibe cabecalho, contadores clicaveis e uma secao de acompanhamento rapido de servicos de pesquisa
 - os contadores do dashboard sao clicaveis e levam para as paginas correspondentes
+- a secao de servicos no dashboard possui busca por nome com debounce (300ms), filtros por status/periodo, ordenacao e paginacao incremental (`Ver mais`)
 
 ## Estado React (Dashboard)
 
@@ -187,6 +188,14 @@ No cadastro de Pesquisas (`/researches/new` e `/researches/[id]/edit`):
 - dashboard exibe apenas listagem simples de pesquisas
 - criacao/edicao de pesquisa foi movida para formulario dedicado
 - selecao de concorrentes respeita os concorrentes definidos no cluster
+
+No dashboard (`/dashboard`), secao de servicos de pesquisa:
+
+- lista servicos por tenant ativo com status (`ATIVO`/`SUSPENSO`), cluster, inicio/prazo, recorrencia e resumo de niveis/produtos
+- a busca por nome ignora acentos/caixa e aplica debounce de 300ms
+- filtros adicionais: status e periodo por data de inicio
+- ordenacao: mais recentes, mais antigos, inicio mais recente e nome (A-Z)
+- paginacao incremental em blocos (`Ver mais` / `Mostrar menos`)
 
 Variavel de ambiente para upload de imagens:
 

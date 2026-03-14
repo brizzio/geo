@@ -2,13 +2,16 @@
 
 import Link from "next/link";
 import { useMemo, useRef, useState } from "react";
+import ResearchServiceDashboardSection from "../features/dashboard/components/research-service-dashboard-section";
 import { useDomainActions } from "../features/domain/hooks/use-domain-actions";
 import { STORE_KINDS } from "../features/domain/models";
 import { useDomainState } from "../features/domain/state/domain-state";
 import {
   selectActiveTenant,
   selectActiveTenantId,
+  selectClustersByTenant,
   selectDashboardTotals,
+  selectPriceResearchesByTenant,
   selectStoresByKind
 } from "../features/domain/state/selectors";
 
@@ -33,6 +36,14 @@ function DashboardRuntime() {
   );
   const competitorStores = useMemo(
     () => (activeTenantId ? selectStoresByKind(state, activeTenantId, STORE_KINDS.COMPETITOR) : []),
+    [state, activeTenantId]
+  );
+  const clusters = useMemo(
+    () => (activeTenantId ? selectClustersByTenant(state, activeTenantId) : []),
+    [state, activeTenantId]
+  );
+  const priceResearches = useMemo(
+    () => (activeTenantId ? selectPriceResearchesByTenant(state, activeTenantId) : []),
     [state, activeTenantId]
   );
   const statCards = useMemo(
@@ -166,6 +177,12 @@ function DashboardRuntime() {
             ))}
           </section>
         ) : null}
+
+        <ResearchServiceDashboardSection
+          tenantId={activeTenantId}
+          clusters={clusters}
+          priceResearches={priceResearches}
+        />
       </div>
     </main>
   );

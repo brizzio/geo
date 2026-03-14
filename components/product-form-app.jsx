@@ -27,6 +27,17 @@ const INITIAL_FORM = {
   line: "",
   industry_name: "",
   presentation: "",
+  package_type: "",
+  package_model: "",
+  package_material: "",
+  package_format: "",
+  package_dimensions_unit: "cm",
+  package_dimensions_height: "",
+  package_dimensions_width: "",
+  package_dimensions_depth: "",
+  package_weight_unit: "",
+  package_gross_weight: "",
+  package_net_weight: "",
   weight: "",
   weight_unit: "",
   volume: "",
@@ -86,6 +97,32 @@ function toFormFromProduct(product) {
     line: product.line || "",
     industry_name: product.industry_name || "",
     presentation: product.presentation || "",
+    package_type: product.package_type || "",
+    package_model: product.package_model || "",
+    package_material: product.package_material || "",
+    package_format: product.package_format || "",
+    package_dimensions_unit: product.package_dimensions_unit || "cm",
+    package_dimensions_height:
+      product.package_dimensions_height === null || product.package_dimensions_height === undefined
+        ? ""
+        : String(product.package_dimensions_height),
+    package_dimensions_width:
+      product.package_dimensions_width === null || product.package_dimensions_width === undefined
+        ? ""
+        : String(product.package_dimensions_width),
+    package_dimensions_depth:
+      product.package_dimensions_depth === null || product.package_dimensions_depth === undefined
+        ? ""
+        : String(product.package_dimensions_depth),
+    package_weight_unit: product.package_weight_unit || "",
+    package_gross_weight:
+      product.package_gross_weight === null || product.package_gross_weight === undefined
+        ? ""
+        : String(product.package_gross_weight),
+    package_net_weight:
+      product.package_net_weight === null || product.package_net_weight === undefined
+        ? ""
+        : String(product.package_net_weight),
     weight: product.weight === null || product.weight === undefined ? "" : String(product.weight),
     weight_unit: product.weight_unit || "",
     volume: product.volume === null || product.volume === undefined ? "" : String(product.volume),
@@ -96,6 +133,8 @@ function toFormFromProduct(product) {
 
 function ProductFormRuntime({ mode = "create", productId = null }) {
   const isEdit = mode === "edit";
+  const isClone = mode === "clone";
+  const isExistingSourceMode = isEdit || isClone;
   const currentProductId = productId ? String(productId) : null;
   const router = useRouter();
   const { state, hydrationDone } = useDomainState();
@@ -104,14 +143,14 @@ function ProductFormRuntime({ mode = "create", productId = null }) {
   const tenants = useMemo(() => selectTenants(state), [state]);
   const activeTenantId = useMemo(() => selectActiveTenantId(state), [state]);
   const productToEdit = useMemo(() => {
-    if (!isEdit || !currentProductId) {
+    if (!isExistingSourceMode || !currentProductId) {
       return null;
     }
     return selectProductById(state, currentProductId);
-  }, [state, isEdit, currentProductId]);
+  }, [state, isExistingSourceMode, currentProductId]);
 
   const [form, setForm] = useState(() => createForm(activeTenantId));
-  const [bootstrapped, setBootstrapped] = useState(!isEdit);
+  const [bootstrapped, setBootstrapped] = useState(!isExistingSourceMode);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -121,7 +160,7 @@ function ProductFormRuntime({ mode = "create", productId = null }) {
   }, [form.image, form.image_url]);
 
   useEffect(() => {
-    if (isEdit) {
+    if (isExistingSourceMode) {
       return;
     }
 
@@ -134,15 +173,28 @@ function ProductFormRuntime({ mode = "create", productId = null }) {
         tenant_id: activeTenantId || ""
       };
     });
-  }, [activeTenantId, isEdit]);
+  }, [activeTenantId, isExistingSourceMode]);
 
   useEffect(() => {
-    if (!isEdit || !productToEdit) {
+    if (!isExistingSourceMode || !productToEdit) {
       return;
     }
+
+    if (isClone) {
+      const clonedForm = toFormFromProduct(productToEdit);
+      setForm({
+        ...clonedForm,
+        id: "",
+        created_at: null,
+        name: clonedForm.name ? `${clonedForm.name} (copia)` : clonedForm.name
+      });
+      setBootstrapped(true);
+      return;
+    }
+
     setForm(toFormFromProduct(productToEdit));
     setBootstrapped(true);
-  }, [isEdit, productToEdit]);
+  }, [isExistingSourceMode, isClone, productToEdit]);
 
   function update(field, value) {
     setForm((prev) => ({
@@ -192,11 +244,19 @@ function ProductFormRuntime({ mode = "create", productId = null }) {
     setSaving(true);
 
     try {
-      if (isEdit && !productToEdit) {
-        throw new Error("Produto nao encontrado para edicao.");
+      if (isExistingSourceMode && !productToEdit) {
+        throw new Error("Produto base nao encontrado.");
       }
 
-      saveProduct(form);
+      const payload = isClone
+        ? {
+            ...form,
+            id: "",
+            created_at: null
+          }
+        : form;
+
+      saveProduct(payload);
       router.replace("/dashboard");
     } catch (err) {
       setError(err?.message || "Falha ao salvar produto.");
@@ -205,7 +265,7 @@ function ProductFormRuntime({ mode = "create", productId = null }) {
     }
   }
 
-  if (isEdit && !hydrationDone) {
+  if (isExistingSourceMode && !hydrationDone) {
     return (
       <main className={"min-h-screen p-6 text-slate-900 bg-[radial-gradient(circle_at_12%_10%,rgba(255,208,82,0.18),transparent_32%),radial-gradient(circle_at_85%_90%,rgba(37,99,235,0.16),transparent_40%),linear-gradient(180deg,#f7f7f8_0%,#f0f2f5_100%)]"}>
         <div className={"mx-auto grid max-w-[1440px] gap-4"}>
@@ -217,13 +277,13 @@ function ProductFormRuntime({ mode = "create", productId = null }) {
     );
   }
 
-  if (isEdit && hydrationDone && !productToEdit) {
+  if (isExistingSourceMode && hydrationDone && !productToEdit) {
     return (
       <main className={"min-h-screen p-6 text-slate-900 bg-[radial-gradient(circle_at_12%_10%,rgba(255,208,82,0.18),transparent_32%),radial-gradient(circle_at_85%_90%,rgba(37,99,235,0.16),transparent_40%),linear-gradient(180deg,#f7f7f8_0%,#f0f2f5_100%)]"}>
         <div className={"mx-auto grid max-w-[1440px] gap-4"}>
           <section className={"grid gap-2.5 rounded-xl border border-slate-900/10 bg-white/90 p-[14px]"}>
-            <h2 className={"m-0 text-lg"}>Produto nao encontrado</h2>
-            <p className={"m-0 text-xs opacity-70"}>O produto foi removido ou o ID informado e invalido.</p>
+            <h2 className={"m-0 text-lg"}>Produto base nao encontrado</h2>
+            <p className={"m-0 text-xs opacity-70"}>O produto informado foi removido ou o ID e invalido.</p>
             <div className={"flex flex-wrap gap-2"}>
               <Link href="/dashboard" className={"inline-flex items-center justify-center rounded-lg border border-slate-900 bg-slate-900 px-3 py-2.5 text-[13px] text-white no-underline"}>
                 Voltar ao dashboard
@@ -235,7 +295,7 @@ function ProductFormRuntime({ mode = "create", productId = null }) {
     );
   }
 
-  if (isEdit && !bootstrapped) {
+  if (isExistingSourceMode && !bootstrapped) {
     return (
       <main className={"min-h-screen p-6 text-slate-900 bg-[radial-gradient(circle_at_12%_10%,rgba(255,208,82,0.18),transparent_32%),radial-gradient(circle_at_85%_90%,rgba(37,99,235,0.16),transparent_40%),linear-gradient(180deg,#f7f7f8_0%,#f0f2f5_100%)]"}>
         <div className={"mx-auto grid max-w-[1440px] gap-4"}>
@@ -252,7 +312,9 @@ function ProductFormRuntime({ mode = "create", productId = null }) {
       <div className={"mx-auto grid max-w-[1440px] gap-4"}>
         <header className={"flex items-center justify-between gap-4 rounded-[14px] bg-white/[0.85] px-5 py-[18px] shadow-[0_10px_20px_rgba(15,23,42,0.08)]"}>
           <div>
-            <h1 className={"m-0 text-[30px] tracking-[0.5px]"}>{isEdit ? "Editar Produto" : "Criar Produto"}</h1>
+            <h1 className={"m-0 text-[30px] tracking-[0.5px]"}>
+              {isEdit ? "Editar Produto" : isClone ? "Novo Produto Baseado em Item Existente" : "Criar Produto"}
+            </h1>
             <p className={"mb-0 mt-1 text-sm [opacity:0.85]"}>
               Cadastro de catalogo para uso em pesquisas.
             </p>
@@ -273,7 +335,7 @@ function ProductFormRuntime({ mode = "create", productId = null }) {
                 <select
                   value={form.tenant_id}
                   onChange={(e) => update("tenant_id", e.target.value)}
-                  disabled={isEdit}
+                  disabled={isEdit || isClone}
                   required
                 >
                   <option value="">Selecione...</option>
@@ -363,6 +425,122 @@ function ProductFormRuntime({ mode = "create", productId = null }) {
                 />
               </label>
             </div>
+
+            <section className={"grid gap-2 rounded-lg border border-slate-200 bg-white p-2"}>
+              <h3 className={"m-0 text-sm"}>Embalagem</h3>
+
+              <div className={"grid grid-cols-3 gap-2 max-[980px]:grid-cols-1"}>
+                <label className={"grid gap-1 text-xs [&>input]:w-full [&>input]:rounded-md [&>input]:border [&>input]:border-slate-300 [&>input]:bg-white [&>input]:p-2 [&>input]:text-[13px] [&>select]:w-full [&>select]:rounded-md [&>select]:border [&>select]:border-slate-300 [&>select]:bg-white [&>select]:p-2 [&>select]:text-[13px] [&>textarea]:w-full [&>textarea]:min-h-[70px] [&>textarea]:rounded-md [&>textarea]:border [&>textarea]:border-slate-300 [&>textarea]:bg-white [&>textarea]:p-2 [&>textarea]:text-[13px]"}>
+                  <span>Tipo de embalagem</span>
+                  <input
+                    value={form.package_type}
+                    onChange={(e) => update("package_type", e.target.value)}
+                    placeholder="Ex: Flexivel"
+                  />
+                </label>
+                <label className={"grid gap-1 text-xs [&>input]:w-full [&>input]:rounded-md [&>input]:border [&>input]:border-slate-300 [&>input]:bg-white [&>input]:p-2 [&>input]:text-[13px] [&>select]:w-full [&>select]:rounded-md [&>select]:border [&>select]:border-slate-300 [&>select]:bg-white [&>select]:p-2 [&>select]:text-[13px] [&>textarea]:w-full [&>textarea]:min-h-[70px] [&>textarea]:rounded-md [&>textarea]:border [&>textarea]:border-slate-300 [&>textarea]:bg-white [&>textarea]:p-2 [&>textarea]:text-[13px]"}>
+                  <span>Modelo da embalagem</span>
+                  <input
+                    value={form.package_model}
+                    onChange={(e) => update("package_model", e.target.value)}
+                    placeholder="Ex: Flow Pack (Solda de 3 pontos)"
+                  />
+                </label>
+                <label className={"grid gap-1 text-xs [&>input]:w-full [&>input]:rounded-md [&>input]:border [&>input]:border-slate-300 [&>input]:bg-white [&>input]:p-2 [&>input]:text-[13px] [&>select]:w-full [&>select]:rounded-md [&>select]:border [&>select]:border-slate-300 [&>select]:bg-white [&>select]:p-2 [&>select]:text-[13px] [&>textarea]:w-full [&>textarea]:min-h-[70px] [&>textarea]:rounded-md [&>textarea]:border [&>textarea]:border-slate-300 [&>textarea]:bg-white [&>textarea]:p-2 [&>textarea]:text-[13px]"}>
+                  <span>Material da embalagem</span>
+                  <input
+                    value={form.package_material}
+                    onChange={(e) => update("package_material", e.target.value)}
+                    placeholder="Ex: Plastico Laminado (PE/PP)"
+                  />
+                </label>
+              </div>
+
+              <div className={"grid grid-cols-5 gap-2 max-[980px]:grid-cols-1"}>
+                <label className={"grid gap-1 text-xs [&>input]:w-full [&>input]:rounded-md [&>input]:border [&>input]:border-slate-300 [&>input]:bg-white [&>input]:p-2 [&>input]:text-[13px] [&>select]:w-full [&>select]:rounded-md [&>select]:border [&>select]:border-slate-300 [&>select]:bg-white [&>select]:p-2 [&>select]:text-[13px] [&>textarea]:w-full [&>textarea]:min-h-[70px] [&>textarea]:rounded-md [&>textarea]:border [&>textarea]:border-slate-300 [&>textarea]:bg-white [&>textarea]:p-2 [&>textarea]:text-[13px]"}>
+                  <span>Formato</span>
+                  <input
+                    value={form.package_format}
+                    onChange={(e) => update("package_format", e.target.value)}
+                    placeholder="Ex: Retangular / Almofada"
+                  />
+                </label>
+                <label className={"grid gap-1 text-xs [&>input]:w-full [&>input]:rounded-md [&>input]:border [&>input]:border-slate-300 [&>input]:bg-white [&>input]:p-2 [&>input]:text-[13px] [&>select]:w-full [&>select]:rounded-md [&>select]:border [&>select]:border-slate-300 [&>select]:bg-white [&>select]:p-2 [&>select]:text-[13px] [&>textarea]:w-full [&>textarea]:min-h-[70px] [&>textarea]:rounded-md [&>textarea]:border [&>textarea]:border-slate-300 [&>textarea]:bg-white [&>textarea]:p-2 [&>textarea]:text-[13px]"}>
+                  <span>Unidade dimensoes</span>
+                  <input
+                    value={form.package_dimensions_unit}
+                    onChange={(e) => update("package_dimensions_unit", e.target.value)}
+                    placeholder="cm"
+                  />
+                </label>
+                <label className={"grid gap-1 text-xs [&>input]:w-full [&>input]:rounded-md [&>input]:border [&>input]:border-slate-300 [&>input]:bg-white [&>input]:p-2 [&>input]:text-[13px] [&>select]:w-full [&>select]:rounded-md [&>select]:border [&>select]:border-slate-300 [&>select]:bg-white [&>select]:p-2 [&>select]:text-[13px] [&>textarea]:w-full [&>textarea]:min-h-[70px] [&>textarea]:rounded-md [&>textarea]:border [&>textarea]:border-slate-300 [&>textarea]:bg-white [&>textarea]:p-2 [&>textarea]:text-[13px]"}>
+                  <span>Altura</span>
+                  <input
+                    type="number"
+                    step="0.001"
+                    min="0"
+                    value={form.package_dimensions_height}
+                    onChange={(e) => update("package_dimensions_height", e.target.value)}
+                    placeholder="Ex: 25"
+                  />
+                </label>
+                <label className={"grid gap-1 text-xs [&>input]:w-full [&>input]:rounded-md [&>input]:border [&>input]:border-slate-300 [&>input]:bg-white [&>input]:p-2 [&>input]:text-[13px] [&>select]:w-full [&>select]:rounded-md [&>select]:border [&>select]:border-slate-300 [&>select]:bg-white [&>select]:p-2 [&>select]:text-[13px] [&>textarea]:w-full [&>textarea]:min-h-[70px] [&>textarea]:rounded-md [&>textarea]:border [&>textarea]:border-slate-300 [&>textarea]:bg-white [&>textarea]:p-2 [&>textarea]:text-[13px]"}>
+                  <span>Largura</span>
+                  <input
+                    type="number"
+                    step="0.001"
+                    min="0"
+                    value={form.package_dimensions_width}
+                    onChange={(e) => update("package_dimensions_width", e.target.value)}
+                    placeholder="Ex: 18"
+                  />
+                </label>
+                <label className={"grid gap-1 text-xs [&>input]:w-full [&>input]:rounded-md [&>input]:border [&>input]:border-slate-300 [&>input]:bg-white [&>input]:p-2 [&>input]:text-[13px] [&>select]:w-full [&>select]:rounded-md [&>select]:border [&>select]:border-slate-300 [&>select]:bg-white [&>select]:p-2 [&>select]:text-[13px] [&>textarea]:w-full [&>textarea]:min-h-[70px] [&>textarea]:rounded-md [&>textarea]:border [&>textarea]:border-slate-300 [&>textarea]:bg-white [&>textarea]:p-2 [&>textarea]:text-[13px]"}>
+                  <span>Profundidade</span>
+                  <input
+                    type="number"
+                    step="0.001"
+                    min="0"
+                    value={form.package_dimensions_depth}
+                    onChange={(e) => update("package_dimensions_depth", e.target.value)}
+                    placeholder="Ex: 4"
+                  />
+                </label>
+              </div>
+
+              <div className={"grid grid-cols-3 gap-2 max-[980px]:grid-cols-1"}>
+                <label className={"grid gap-1 text-xs [&>input]:w-full [&>input]:rounded-md [&>input]:border [&>input]:border-slate-300 [&>input]:bg-white [&>input]:p-2 [&>input]:text-[13px] [&>select]:w-full [&>select]:rounded-md [&>select]:border [&>select]:border-slate-300 [&>select]:bg-white [&>select]:p-2 [&>select]:text-[13px] [&>textarea]:w-full [&>textarea]:min-h-[70px] [&>textarea]:rounded-md [&>textarea]:border [&>textarea]:border-slate-300 [&>textarea]:bg-white [&>textarea]:p-2 [&>textarea]:text-[13px]"}>
+                  <span>Unidade peso embalagem</span>
+                  <input
+                    value={form.package_weight_unit}
+                    onChange={(e) => update("package_weight_unit", e.target.value)}
+                    placeholder="Ex: KG"
+                  />
+                </label>
+                <label className={"grid gap-1 text-xs [&>input]:w-full [&>input]:rounded-md [&>input]:border [&>input]:border-slate-300 [&>input]:bg-white [&>input]:p-2 [&>input]:text-[13px] [&>select]:w-full [&>select]:rounded-md [&>select]:border [&>select]:border-slate-300 [&>select]:bg-white [&>select]:p-2 [&>select]:text-[13px] [&>textarea]:w-full [&>textarea]:min-h-[70px] [&>textarea]:rounded-md [&>textarea]:border [&>textarea]:border-slate-300 [&>textarea]:bg-white [&>textarea]:p-2 [&>textarea]:text-[13px]"}>
+                  <span>Peso bruto embalagem</span>
+                  <input
+                    type="number"
+                    step="0.001"
+                    min="0"
+                    value={form.package_gross_weight}
+                    onChange={(e) => update("package_gross_weight", e.target.value)}
+                    placeholder="Ex: 835"
+                  />
+                </label>
+                <label className={"grid gap-1 text-xs [&>input]:w-full [&>input]:rounded-md [&>input]:border [&>input]:border-slate-300 [&>input]:bg-white [&>input]:p-2 [&>input]:text-[13px] [&>select]:w-full [&>select]:rounded-md [&>select]:border [&>select]:border-slate-300 [&>select]:bg-white [&>select]:p-2 [&>select]:text-[13px] [&>textarea]:w-full [&>textarea]:min-h-[70px] [&>textarea]:rounded-md [&>textarea]:border [&>textarea]:border-slate-300 [&>textarea]:bg-white [&>textarea]:p-2 [&>textarea]:text-[13px]"}>
+                  <span>Peso liquido embalagem</span>
+                  <input
+                    type="number"
+                    step="0.001"
+                    min="0"
+                    value={form.package_net_weight}
+                    onChange={(e) => update("package_net_weight", e.target.value)}
+                    placeholder="Ex: 800"
+                  />
+                </label>
+              </div>
+            </section>
 
             <div className={"grid grid-cols-5 gap-2 max-[980px]:grid-cols-1"}>
               <label className={"grid gap-1 text-xs [&>input]:w-full [&>input]:rounded-md [&>input]:border [&>input]:border-slate-300 [&>input]:bg-white [&>input]:p-2 [&>input]:text-[13px] [&>select]:w-full [&>select]:rounded-md [&>select]:border [&>select]:border-slate-300 [&>select]:bg-white [&>select]:p-2 [&>select]:text-[13px] [&>textarea]:w-full [&>textarea]:min-h-[70px] [&>textarea]:rounded-md [&>textarea]:border [&>textarea]:border-slate-300 [&>textarea]:bg-white [&>textarea]:p-2 [&>textarea]:text-[13px]"}>
@@ -502,7 +680,7 @@ function ProductFormRuntime({ mode = "create", productId = null }) {
                     />
                     Salvando...
                   </>
-                ) : isEdit ? "Salvar alteracoes" : "Criar produto"}
+                ) : isEdit ? "Salvar alteracoes" : isClone ? "Criar copia" : "Criar produto"}
               </button>
             </div>
           </form>
