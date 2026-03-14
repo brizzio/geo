@@ -16,7 +16,10 @@ const FIRESTORE_COLLECTIONS = {
   clusterLevels: "cluster_levels",
   clusters: "clusters",
   priceResearches: "price_researches",
-  products: "products"
+  products: "products",
+  researchSchedules: "research_schedules",
+  researchTasks: "research_tasks",
+  events: "events"
 };
 const LEGACY_TENANTS_COLLECTION = "tenants";
 const SYNC_KEYS = Object.keys(FIRESTORE_COLLECTIONS);

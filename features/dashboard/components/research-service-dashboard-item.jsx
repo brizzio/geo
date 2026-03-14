@@ -81,6 +81,22 @@ export default function ResearchServiceDashboardItem({ research, clusterName }) 
         >
           Abrir servico
         </Link>
+        <Link
+          href={`/researches/${research?.id}/tasks`}
+          className={
+            "inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-[13px] text-slate-900 no-underline"
+          }
+        >
+          Tarefas de pesquisa
+        </Link>
+        <Link
+          href={`/researches/${research?.id}/list`}
+          className={
+            "inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-[13px] text-slate-900 no-underline"
+          }
+        >
+          Ver lista
+        </Link>
       </div>
     </article>
   );

@@ -81,6 +81,36 @@ export function selectPriceResearchById(state, researchId) {
   return (state?.priceResearches || []).find((item) => String(item.id) === String(researchId)) || null;
 }
 
+export function selectResearchSchedulesByTenant(state, tenantId) {
+  return (state?.researchSchedules || []).filter((item) => String(item.tenant_id) === String(tenantId));
+}
+
+export function selectResearchSchedulesByService(state, researchServiceId) {
+  return (state?.researchSchedules || []).filter(
+    (item) => String(item.research_service_id) === String(researchServiceId)
+  );
+}
+
+export function selectResearchTasksByTenant(state, tenantId) {
+  return (state?.researchTasks || []).filter((item) => String(item.tenant_id) === String(tenantId));
+}
+
+export function selectResearchTasksByService(state, researchServiceId) {
+  return (state?.researchTasks || []).filter(
+    (item) => String(item.research_service_id) === String(researchServiceId)
+  );
+}
+
+export function selectEventsByTenant(state, tenantId) {
+  return (state?.events || []).filter((item) => String(item.tenant_id) === String(tenantId));
+}
+
+export function selectEventsByService(state, researchServiceId) {
+  return (state?.events || []).filter(
+    (item) => String(item.research_service_id) === String(researchServiceId)
+  );
+}
+
 export function selectProductsByTenant(state, tenantId) {
   return (state?.products || []).filter((item) => String(item.tenant_id) === String(tenantId));
 }

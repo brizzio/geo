@@ -25,22 +25,82 @@ import {
   DOMAIN_UPSERT_NETWORK,
   DOMAIN_UPSERT_PRODUCT,
   DOMAIN_UPSERT_PRICE_RESEARCH,
+  DOMAIN_UPSERT_EVENT,
+  DOMAIN_UPSERT_RESEARCH_SCHEDULE,
+  DOMAIN_UPSERT_RESEARCH_TASK,
   DOMAIN_UPSERT_STORE,
   DOMAIN_UPSERT_TENANT
 } from "../state/action-types";
+import { syncResearchServiceSchedulesForCurrentMonth } from "../services/research-scheduler";
 import { useDomainState } from "../state/domain-state";
 import {
   selectClusterById,
   selectClustersByTenant,
   selectNetworksByTenant,
+  selectPriceResearchById,
+  selectEventsByService,
+  selectEventsByTenant,
   selectProductsByTenant,
   selectPriceResearchesByTenant,
+  selectResearchSchedulesByService,
+  selectResearchSchedulesByTenant,
+  selectResearchTasksByService,
+  selectResearchTasksByTenant,
   selectStoresByTenant,
   selectBannersByTenant,
   selectStoreById
 } from "../state/selectors";
 
 const SNAPSHOT_VERSION = 1;
+
+function buildId(prefix = "id") {
+  const random = Math.floor(Math.random() * 1_000_000)
+    .toString(36)
+    .padStart(4, "0");
+  return `${prefix}_${Date.now().toString(36)}_${random}`;
+}
+
+function nowIso() {
+  return new Date().toISOString();
+}
+
+function normalizeSchedulerActor(actorInput = null) {
+  if (typeof actorInput === "string" && actorInput.trim()) {
+    return actorInput.trim();
+  }
+
+  const actor = actorInput && typeof actorInput === "object" ? actorInput : {};
+  const fromEmail = String(actor.email || "").trim();
+  if (fromEmail) {
+    return fromEmail;
+  }
+  const fromUsername = String(actor.username || "").trim();
+  if (fromUsername) {
+    return fromUsername;
+  }
+  const fromUid = String(actor.uid || actor.id || "").trim();
+  if (fromUid) {
+    return fromUid;
+  }
+  return "system";
+}
+
+function isDateInYearMonth(dateYmd, year, month) {
+  const match = String(dateYmd || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) {
+    return false;
+  }
+  return Number(match[1]) === Number(year) && Number(match[2]) === Number(month);
+}
+
+function makeEventKey(payload = {}) {
+  return [
+    String(payload.research_service_id || ""),
+    String(payload.date || ""),
+    String(payload.place_id || ""),
+    String(payload.level_id || "")
+  ].join("|");
+}
 
 function toBatchItems(payload) {
   if (Array.isArray(payload)) {
@@ -158,6 +218,15 @@ function validateImportTenantSnapshot(snapshot) {
   }
   if (snapshot.products !== undefined && !Array.isArray(snapshot.products)) {
     throw new Error("Backup sem lista de produtos valida.");
+  }
+  if (snapshot.researchSchedules !== undefined && !Array.isArray(snapshot.researchSchedules)) {
+    throw new Error("Backup sem lista de agendas de pesquisa valida.");
+  }
+  if (snapshot.researchTasks !== undefined && !Array.isArray(snapshot.researchTasks)) {
+    throw new Error("Backup sem lista de tarefas de pesquisa valida.");
+  }
+  if (snapshot.events !== undefined && !Array.isArray(snapshot.events)) {
+    throw new Error("Backup sem lista de eventos valida.");
   }
 }
 
@@ -384,6 +453,113 @@ export function useDomainActions() {
     [dispatch]
   );
 
+  const runResearchSchedulerForServiceMonth = useCallback(
+    (researchId, referenceDateInput = null, actorInput = null) => {
+      const serviceId = String(researchId || "");
+      if (!serviceId) {
+        throw new Error("Informe o ID do servico de pesquisa.");
+      }
+
+      const research = selectPriceResearchById(state, serviceId);
+      if (!research) {
+        throw new Error("Servico de pesquisa nao encontrado.");
+      }
+
+      ensureTenantExists(state, research.tenant_id);
+      const cluster = selectClusterById(state, research.cluster_id);
+      if (!cluster) {
+        throw new Error("Cluster do servico nao encontrado.");
+      }
+
+      const referenceDate =
+        referenceDateInput instanceof Date
+          ? referenceDateInput
+          : referenceDateInput
+            ? new Date(referenceDateInput)
+            : new Date();
+      const effectiveReferenceDate = Number.isNaN(referenceDate.getTime()) ? new Date() : referenceDate;
+      const year = effectiveReferenceDate.getFullYear();
+      const month = effectiveReferenceDate.getMonth() + 1;
+
+      const result = syncResearchServiceSchedulesForCurrentMonth({
+        research,
+        cluster,
+        stores: selectStoresByTenant(state, research.tenant_id),
+        products: selectProductsByTenant(state, research.tenant_id),
+        existingSchedules: selectResearchSchedulesByService(state, serviceId),
+        existingTasks: selectResearchTasksByService(state, serviceId),
+        referenceDate: effectiveReferenceDate
+      });
+      const actor = normalizeSchedulerActor(actorInput);
+      const timestamp = nowIso();
+      const existingEventsByKey = new Map(
+        selectEventsByService(state, serviceId)
+          .filter((event) => isDateInYearMonth(event.date, year, month))
+          .map((event) => [makeEventKey(event), event])
+      );
+
+      result.schedulesToUpsert.forEach((schedule) => {
+        dispatch({ type: DOMAIN_UPSERT_RESEARCH_SCHEDULE, payload: schedule });
+      });
+      result.tasksToUpsert.forEach((task) => {
+        dispatch({ type: DOMAIN_UPSERT_RESEARCH_TASK, payload: task });
+      });
+
+      result.records.forEach((entry) => {
+        const schedule = entry?.schedule || null;
+        if (!schedule) {
+          return;
+        }
+
+        const task = entry?.task || null;
+        const key = makeEventKey({
+          research_service_id: serviceId,
+          date: schedule.date,
+          place_id: schedule.place_id,
+          level_id: schedule.level_id
+        });
+        const existingEvent = existingEventsByKey.get(key) || null;
+        const payload = {
+          id: existingEvent?.id || buildId("event"),
+          tenant_id: research.tenant_id,
+          research_service_id: serviceId,
+          research_schedule_id: schedule.id || null,
+          research_task_id: task?.id || schedule?.research_task_id || existingEvent?.research_task_id || null,
+          cluster_id: research.cluster_id,
+          level_id: schedule.level_id || task?.level_id || null,
+          place_id: schedule.place_id || task?.place_id || null,
+          date: schedule.date || null,
+          due_date: schedule.due_date || schedule.date || null,
+          status: schedule.status || task?.status || existingEvent?.status || "PENDING",
+          list_id: schedule.list_id || existingEvent?.list_id || null,
+          list_items_count: schedule.list_items_count || existingEvent?.list_items_count || 0,
+          value:
+            schedule.value !== null && schedule.value !== undefined
+              ? schedule.value
+              : existingEvent?.value !== null && existingEvent?.value !== undefined
+                ? existingEvent.value
+                : 200,
+          created_by: existingEvent?.created_by || actor,
+          created_at: existingEvent?.created_at || timestamp,
+          updated_by: actor,
+          updated_at: timestamp
+        };
+
+        dispatch({ type: DOMAIN_UPSERT_EVENT, payload });
+      });
+
+      return {
+        records: result.records,
+        total: result.records.length,
+        created: result.createdCount,
+        existing: result.existingCount,
+        month,
+        year
+      };
+    },
+    [dispatch, state]
+  );
+
   const saveProduct = useCallback(
     (values) => {
       const product = createProductModel(values);
@@ -418,7 +594,10 @@ export function useDomainActions() {
         clusterLevels: [],
         clusters,
         priceResearches: selectPriceResearchesByTenant(state, tenantId),
-        products: selectProductsByTenant(state, tenantId)
+        products: selectProductsByTenant(state, tenantId),
+        researchSchedules: selectResearchSchedulesByTenant(state, tenantId),
+        researchTasks: selectResearchTasksByTenant(state, tenantId),
+        events: selectEventsByTenant(state, tenantId)
       };
 
       return payload;
@@ -792,6 +971,7 @@ export function useDomainActions() {
     removeCluster,
     savePriceResearch,
     removePriceResearch,
+    runResearchSchedulerForServiceMonth,
     saveProduct,
     removeProduct,
     exportTenantSnapshot,

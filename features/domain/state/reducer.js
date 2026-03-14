@@ -5,6 +5,9 @@ import {
   DOMAIN_DELETE_NETWORK,
   DOMAIN_DELETE_PRODUCT,
   DOMAIN_DELETE_PRICE_RESEARCH,
+  DOMAIN_DELETE_RESEARCH_SCHEDULE,
+  DOMAIN_DELETE_RESEARCH_TASK,
+  DOMAIN_DELETE_EVENT,
   DOMAIN_DELETE_STORE,
   DOMAIN_DELETE_TENANT,
   DOMAIN_HYDRATE,
@@ -15,12 +18,20 @@ import {
   DOMAIN_UPSERT_NETWORK,
   DOMAIN_UPSERT_PRODUCT,
   DOMAIN_UPSERT_PRICE_RESEARCH,
+  DOMAIN_UPSERT_RESEARCH_SCHEDULE,
+  DOMAIN_UPSERT_RESEARCH_TASK,
+  DOMAIN_UPSERT_EVENT,
   DOMAIN_UPSERT_STORE,
   DOMAIN_UPSERT_TENANT
 } from "./action-types";
 import { domainInitialState } from "./initial-state";
 import { removeById, upsertById, uniqueStrings } from "./state-utils";
-import { createDefaultClusterLevelsForCluster } from "../models";
+import {
+  createDefaultClusterLevelsForCluster,
+  createResearchExecutionFromService,
+  normalizeResearchSchedule,
+  normalizeResearchTask
+} from "../models";
 
 function toArray(value) {
   return Array.isArray(value) ? value : [];
@@ -273,6 +284,35 @@ function normalizeProduct(item = {}) {
     volume: normalizeProductNumber(item.volume),
     volume_unit: normalizeText(item.volume_unit) || null,
     category: normalizeText(item.category) || null
+  };
+}
+
+function normalizeEventNumber(value, fallback = 0) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function normalizeEvent(item = {}) {
+  return {
+    ...item,
+    id: normalizeText(item.id) || null,
+    tenant_id: normalizeText(item.tenant_id) || null,
+    research_service_id: normalizeText(item.research_service_id) || null,
+    research_schedule_id: normalizeText(item.research_schedule_id) || null,
+    research_task_id: normalizeText(item.research_task_id) || null,
+    cluster_id: normalizeText(item.cluster_id) || null,
+    level_id: normalizeText(item.level_id) || null,
+    place_id: normalizeText(item.place_id) || null,
+    date: normalizeText(item.date) || "",
+    due_date: normalizeText(item.due_date) || normalizeText(item.date) || "",
+    status: normalizeText(item.status)?.toUpperCase() || "PENDING",
+    list_id: normalizeText(item.list_id) || null,
+    list_items_count: Math.max(0, Math.floor(normalizeEventNumber(item.list_items_count, 0))),
+    value: normalizeEventNumber(item.value, 200),
+    created_by: normalizeText(item.created_by) || null,
+    updated_by: normalizeText(item.updated_by) || null,
+    created_at: normalizeText(item.created_at) || null,
+    updated_at: normalizeText(item.updated_at) || null
   };
 }
 
@@ -592,6 +632,83 @@ function normalizeCluster(item = {}, legacyClusterLevels = []) {
   };
 }
 
+function replaceExecutionForResearch({
+  schedules = [],
+  tasks = [],
+  researchId,
+  nextSchedules = [],
+  nextTasks = []
+}) {
+  const targetResearchId = String(researchId || "");
+  const cleanedSchedules = schedules.filter(
+    (item) => String(item?.research_service_id || "") !== targetResearchId
+  );
+  const cleanedTasks = tasks.filter(
+    (item) => String(item?.research_service_id || "") !== targetResearchId
+  );
+
+  return {
+    schedules: [...cleanedSchedules, ...nextSchedules.map((item) => normalizeResearchSchedule(item))],
+    tasks: [...cleanedTasks, ...nextTasks.map((item) => normalizeResearchTask(item))]
+  };
+}
+
+function keepExecutionForResearchIds(schedules = [], tasks = [], allowedResearchIds = new Set()) {
+  return {
+    researchSchedules: schedules.filter((item) =>
+      allowedResearchIds.has(String(item?.research_service_id || ""))
+    ),
+    researchTasks: tasks.filter((item) =>
+      allowedResearchIds.has(String(item?.research_service_id || ""))
+    )
+  };
+}
+
+function keepEventsForResearchIds(events = [], allowedResearchIds = new Set()) {
+  return events.filter((item) => allowedResearchIds.has(String(item?.research_service_id || "")));
+}
+
+function dropExecutionByPlaceId(schedules = [], tasks = [], placeId) {
+  const targetPlaceId = String(placeId || "");
+  return {
+    researchSchedules: schedules.filter((item) => String(item?.place_id || "") !== targetPlaceId),
+    researchTasks: tasks.filter((item) => String(item?.place_id || "") !== targetPlaceId)
+  };
+}
+
+function dropExecutionByPlaceIds(schedules = [], tasks = [], placeIds = new Set()) {
+  if (!placeIds || placeIds.size === 0) {
+    return {
+      researchSchedules: schedules,
+      researchTasks: tasks
+    };
+  }
+
+  return {
+    researchSchedules: schedules.filter((item) => !placeIds.has(String(item?.place_id || ""))),
+    researchTasks: tasks.filter((item) => !placeIds.has(String(item?.place_id || "")))
+  };
+}
+
+function dropEventsByPlaceIds(events = [], placeIds = new Set()) {
+  if (!placeIds || placeIds.size === 0) {
+    return events;
+  }
+  return events.filter((item) => !placeIds.has(String(item?.place_id || "")));
+}
+
+function createExecutionForResearch(research, clusters = [], stores = [], products = []) {
+  const cluster = (clusters || []).find(
+    (item) => String(item?.id || "") === String(research?.cluster_id || "")
+  );
+  return createResearchExecutionFromService({
+    research,
+    cluster,
+    stores,
+    products
+  });
+}
+
 export function normalizeDomainState(rawState) {
   if (!rawState || typeof rawState !== "object") {
     return domainInitialState;
@@ -601,9 +718,40 @@ export function normalizeDomainState(rawState) {
   const clusters = toArray(rawState.clusters).map((cluster) =>
     normalizeCluster(cluster, legacyClusterLevels)
   );
+  const stores = toArray(rawState.stores).map(normalizeStore);
   const products = toArray(rawState.products).map(normalizeProduct);
   const clusterById = new Map(clusters.map((cluster) => [String(cluster.id), cluster]));
   const productLookupByTenant = buildProductLookupByTenant(products);
+  const priceResearches = toArray(rawState.priceResearches).map((research) =>
+    normalizePriceResearch(research, clusterById, productLookupByTenant)
+  );
+  let researchSchedules = toArray(rawState.researchSchedules).map(normalizeResearchSchedule);
+  let researchTasks = toArray(rawState.researchTasks).map(normalizeResearchTask);
+  const events = toArray(rawState.events)
+    .map(normalizeEvent)
+    .filter((item) => Boolean(item.id));
+
+  priceResearches.forEach((research) => {
+    const researchId = String(research.id);
+    const hasSchedules = researchSchedules.some(
+      (item) => String(item?.research_service_id || "") === researchId
+    );
+    const hasTasks = researchTasks.some((item) => String(item?.research_service_id || "") === researchId);
+    if (hasSchedules && hasTasks) {
+      return;
+    }
+
+    const generated = createExecutionForResearch(research, clusters, stores, products);
+    const replaced = replaceExecutionForResearch({
+      schedules: researchSchedules,
+      tasks: researchTasks,
+      researchId,
+      nextSchedules: generated.schedules,
+      nextTasks: generated.tasks
+    });
+    researchSchedules = replaced.schedules;
+    researchTasks = replaced.tasks;
+  });
 
   return {
     meta: {
@@ -612,13 +760,14 @@ export function normalizeDomainState(rawState) {
     tenants: toArray(rawState.tenants),
     networks: toArray(rawState.networks),
     retailBanners: toArray(rawState.retailBanners).map(normalizeRetailBanner),
-    stores: toArray(rawState.stores).map(normalizeStore),
+    stores,
     clusterLevels: [],
     clusters,
-    priceResearches: toArray(rawState.priceResearches).map((research) =>
-      normalizePriceResearch(research, clusterById, productLookupByTenant)
-    ),
-    products
+    priceResearches,
+    products,
+    researchSchedules,
+    researchTasks,
+    events
   };
 }
 
@@ -725,6 +874,19 @@ function cascadeDeleteTenant(state, tenantId) {
       return next;
     });
   const products = state.products.filter((item) => !tenantIds.has(String(item.tenant_id)));
+  const remainingResearchIds = new Set(priceResearches.map((item) => String(item.id)));
+  const byResearch = keepExecutionForResearchIds(
+    state.researchSchedules,
+    state.researchTasks,
+    remainingResearchIds
+  );
+  const byPlace = dropExecutionByPlaceIds(
+    byResearch.researchSchedules,
+    byResearch.researchTasks,
+    removedStoreIds
+  );
+  const eventsByResearch = keepEventsForResearchIds(state.events || [], remainingResearchIds);
+  const events = dropEventsByPlaceIds(eventsByResearch, removedStoreIds);
 
   return {
     ...state,
@@ -740,7 +902,10 @@ function cascadeDeleteTenant(state, tenantId) {
     clusterLevels: [],
     clusters,
     priceResearches,
-    products
+    products,
+    researchSchedules: byPlace.researchSchedules,
+    researchTasks: byPlace.researchTasks,
+    events
   };
 }
 
@@ -785,6 +950,19 @@ function cascadeDeleteNetwork(state, networkId) {
       });
       return next;
     });
+  const remainingResearchIds = new Set(priceResearches.map((item) => String(item.id)));
+  const byResearch = keepExecutionForResearchIds(
+    state.researchSchedules,
+    state.researchTasks,
+    remainingResearchIds
+  );
+  const byPlace = dropExecutionByPlaceIds(
+    byResearch.researchSchedules,
+    byResearch.researchTasks,
+    removedStoreIds
+  );
+  const eventsByResearch = keepEventsForResearchIds(state.events || [], remainingResearchIds);
+  const events = dropEventsByPlaceIds(eventsByResearch, removedStoreIds);
 
   return {
     ...state,
@@ -792,7 +970,10 @@ function cascadeDeleteNetwork(state, networkId) {
     retailBanners,
     stores,
     clusters,
-    priceResearches
+    priceResearches,
+    researchSchedules: byPlace.researchSchedules,
+    researchTasks: byPlace.researchTasks,
+    events
   };
 }
 
@@ -825,13 +1006,29 @@ function cascadeDeleteBanner(state, bannerId) {
       });
       return next;
     });
+  const remainingResearchIds = new Set(priceResearches.map((item) => String(item.id)));
+  const byResearch = keepExecutionForResearchIds(
+    state.researchSchedules,
+    state.researchTasks,
+    remainingResearchIds
+  );
+  const byPlace = dropExecutionByPlaceIds(
+    byResearch.researchSchedules,
+    byResearch.researchTasks,
+    removedStoreIds
+  );
+  const eventsByResearch = keepEventsForResearchIds(state.events || [], remainingResearchIds);
+  const events = dropEventsByPlaceIds(eventsByResearch, removedStoreIds);
 
   return {
     ...state,
     retailBanners: removeById(state.retailBanners, bannerId),
     stores,
     clusters,
-    priceResearches
+    priceResearches,
+    researchSchedules: byPlace.researchSchedules,
+    researchTasks: byPlace.researchTasks,
+    events
   };
 }
 
@@ -840,12 +1037,17 @@ function cascadeDeleteStore(state, storeId) {
   const priceResearches = state.priceResearches.map((research) =>
     pruneStoreReferencesFromResearch(research, storeId)
   );
+  const execution = dropExecutionByPlaceId(state.researchSchedules, state.researchTasks, storeId);
+  const events = dropEventsByPlaceIds(state.events || [], new Set([String(storeId)]));
 
   return {
     ...state,
     stores: removeById(state.stores, storeId),
     clusters,
-    priceResearches
+    priceResearches,
+    researchSchedules: execution.researchSchedules,
+    researchTasks: execution.researchTasks,
+    events
   };
 }
 
@@ -858,12 +1060,24 @@ function cascadeDeleteClusterLevel(state, levelId) {
 }
 
 function cascadeDeleteCluster(state, clusterId) {
+  const priceResearches = state.priceResearches.filter((research) =>
+    pruneClusterReferencesFromResearch(research, clusterId)
+  );
+  const remainingResearchIds = new Set(priceResearches.map((item) => String(item.id)));
+  const execution = keepExecutionForResearchIds(
+    state.researchSchedules,
+    state.researchTasks,
+    remainingResearchIds
+  );
+  const events = keepEventsForResearchIds(state.events || [], remainingResearchIds);
+
   return {
     ...state,
     clusters: removeById(state.clusters, clusterId),
-    priceResearches: state.priceResearches.filter((research) =>
-      pruneClusterReferencesFromResearch(research, clusterId)
-    )
+    priceResearches,
+    researchSchedules: execution.researchSchedules,
+    researchTasks: execution.researchTasks,
+    events
   };
 }
 
@@ -954,19 +1168,52 @@ export function domainReducer(state, action) {
       {
         const clusterById = new Map((state.clusters || []).map((cluster) => [String(cluster.id), cluster]));
         const productLookupByTenant = buildProductLookupByTenant(state.products || []);
+        const normalizedResearch = normalizePriceResearch(
+          action.payload,
+          clusterById,
+          productLookupByTenant
+        );
+        const generated = createExecutionForResearch(
+          normalizedResearch,
+          state.clusters,
+          state.stores,
+          state.products
+        );
+        const replacedExecution = replaceExecutionForResearch({
+          schedules: state.researchSchedules,
+          tasks: state.researchTasks,
+          researchId: normalizedResearch.id,
+          nextSchedules: generated.schedules,
+          nextTasks: generated.tasks
+        });
         return {
           ...state,
           priceResearches: upsertById(
             state.priceResearches,
-            normalizePriceResearch(action.payload, clusterById, productLookupByTenant)
-          )
+            normalizedResearch
+          ),
+          researchSchedules: replacedExecution.schedules,
+          researchTasks: replacedExecution.tasks
         };
       }
     case DOMAIN_DELETE_PRICE_RESEARCH:
-      return {
-        ...state,
-        priceResearches: removeById(state.priceResearches, action.payload)
-      };
+      {
+        const remainingResearches = removeById(state.priceResearches, action.payload);
+        const remainingResearchIds = new Set(remainingResearches.map((item) => String(item.id)));
+        const execution = keepExecutionForResearchIds(
+          state.researchSchedules,
+          state.researchTasks,
+          remainingResearchIds
+        );
+        const events = keepEventsForResearchIds(state.events || [], remainingResearchIds);
+        return {
+          ...state,
+          priceResearches: remainingResearches,
+          researchSchedules: execution.researchSchedules,
+          researchTasks: execution.researchTasks,
+          events
+        };
+      }
     case DOMAIN_UPSERT_PRODUCT:
       return {
         ...state,
@@ -976,6 +1223,45 @@ export function domainReducer(state, action) {
       return {
         ...state,
         products: removeById(state.products, action.payload)
+      };
+    case DOMAIN_UPSERT_RESEARCH_SCHEDULE:
+      return {
+        ...state,
+        researchSchedules: upsertById(
+          state.researchSchedules || [],
+          normalizeResearchSchedule(action.payload)
+        )
+      };
+    case DOMAIN_DELETE_RESEARCH_SCHEDULE:
+      return {
+        ...state,
+        researchSchedules: removeById(state.researchSchedules || [], action.payload),
+        events: (state.events || []).filter(
+          (event) => String(event?.research_schedule_id || "") !== String(action.payload)
+        )
+      };
+    case DOMAIN_UPSERT_RESEARCH_TASK:
+      return {
+        ...state,
+        researchTasks: upsertById(state.researchTasks || [], normalizeResearchTask(action.payload))
+      };
+    case DOMAIN_DELETE_RESEARCH_TASK:
+      return {
+        ...state,
+        researchTasks: removeById(state.researchTasks || [], action.payload),
+        events: (state.events || []).filter(
+          (event) => String(event?.research_task_id || "") !== String(action.payload)
+        )
+      };
+    case DOMAIN_UPSERT_EVENT:
+      return {
+        ...state,
+        events: upsertById(state.events || [], normalizeEvent(action.payload))
+      };
+    case DOMAIN_DELETE_EVENT:
+      return {
+        ...state,
+        events: removeById(state.events || [], action.payload)
       };
     default:
       return state;

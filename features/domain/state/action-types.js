@@ -24,3 +24,12 @@ export const DOMAIN_DELETE_PRICE_RESEARCH = "domain/delete_price_research";
 
 export const DOMAIN_UPSERT_PRODUCT = "domain/upsert_product";
 export const DOMAIN_DELETE_PRODUCT = "domain/delete_product";
+
+export const DOMAIN_UPSERT_RESEARCH_SCHEDULE = "domain/upsert_research_schedule";
+export const DOMAIN_DELETE_RESEARCH_SCHEDULE = "domain/delete_research_schedule";
+
+export const DOMAIN_UPSERT_RESEARCH_TASK = "domain/upsert_research_task";
+export const DOMAIN_DELETE_RESEARCH_TASK = "domain/delete_research_task";
+
+export const DOMAIN_UPSERT_EVENT = "domain/upsert_event";
+export const DOMAIN_DELETE_EVENT = "domain/delete_event";

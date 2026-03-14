@@ -17,4 +17,12 @@ export {
   RESEARCH_SERVICE_STATUSES,
   RESEARCH_SERVICE_WEEKDAYS
 } from "./price-research-model";
+export {
+  createResearchExecutionFromService,
+  normalizeResearchSchedule,
+  normalizeResearchTask,
+  RESEARCH_SCHEDULE_STATUSES,
+  RESEARCH_TASK_STATUSES,
+  RESEARCH_ITEM_STATUSES
+} from "./research-execution-model";
 export { createProductModel } from "./product-model";

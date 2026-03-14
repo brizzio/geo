@@ -9,5 +9,8 @@ export const domainInitialState = {
   clusterLevels: [],
   clusters: [],
   priceResearches: [],
-  products: []
+  products: [],
+  researchSchedules: [],
+  researchTasks: [],
+  events: []
 };
