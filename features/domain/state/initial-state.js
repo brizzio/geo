@@ -10,6 +10,7 @@ export const domainInitialState = {
   clusters: [],
   priceResearches: [],
   products: [],
+  userGroups: [],
   researchSchedules: [],
   researchTasks: [],
   events: []

@@ -26,3 +26,4 @@ export {
   RESEARCH_ITEM_STATUSES
 } from "./research-execution-model";
 export { createProductModel } from "./product-model";
+export { createUserGroupModel, DEFAULT_USER_GROUPS } from "./user-group-model";

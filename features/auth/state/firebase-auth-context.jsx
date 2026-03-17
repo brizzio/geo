@@ -440,7 +440,7 @@ export function FirebaseAuthProvider({ children }) {
     return unsubscribe;
   }, [ensureSession, loadProfile]);
 
-  const signUp = useCallback(async ({ email, password, displayName = null, userData = {}, tenantData = null }) => {
+  const signUp = useCallback(async ({ email, password, displayName = null, userData = {}, tenantData = null, skipTenantBootstrap = false }) => {
     ensureFirebaseReady();
     setError(null);
 
@@ -460,8 +460,27 @@ export function FirebaseAuthProvider({ children }) {
     );
 
     const nextProfile = await loadProfile(user.uid);
-    const tenantResult = await ensureDefaultTenant(user, nextProfile, { tenantData });
-    const ensuredProfile = tenantResult.profile || nextProfile;
+    const userType = String(userData?.type || nextProfile?.type || "").toLowerCase();
+    const shouldSkipTenantBootstrap = Boolean(skipTenantBootstrap || userType === "researcher");
+    if (userType === "researcher") {
+      await upsertUserDocument(user, {
+        default_tenant_id: null,
+        tenant_ids: []
+      });
+    }
+    const refreshedProfile = await loadProfile(user.uid);
+    let ensuredProfile = nextProfile;
+    let tenantResult = {
+      tenant: null,
+      tenantId: refreshedProfile?.default_tenant_id || null,
+      createdTenant: false
+    };
+    if (!shouldSkipTenantBootstrap) {
+      tenantResult = await ensureDefaultTenant(user, refreshedProfile, { tenantData });
+      ensuredProfile = tenantResult.profile || refreshedProfile;
+    } else {
+      ensuredProfile = refreshedProfile;
+    }
     setProfile(ensuredProfile);
     setCurrentUser(user);
     return {
@@ -473,7 +492,7 @@ export function FirebaseAuthProvider({ children }) {
     };
   }, [ensureDefaultTenant, loadProfile]);
 
-  const signIn = useCallback(async ({ email, password }) => {
+  const signIn = useCallback(async ({ email, password, skipTenantBootstrap = false }) => {
     ensureFirebaseReady();
     setError(null);
 
@@ -482,8 +501,27 @@ export function FirebaseAuthProvider({ children }) {
     await upsertUserDocument(user);
 
     const nextProfile = await loadProfile(user.uid);
-    const tenantResult = await ensureDefaultTenant(user, nextProfile);
-    const ensuredProfile = tenantResult.profile || nextProfile;
+    const isResearcherUser = String(nextProfile?.type || "").toLowerCase() === "researcher";
+    const shouldSkipTenantBootstrap = Boolean(skipTenantBootstrap || isResearcherUser);
+    if (isResearcherUser) {
+      await upsertUserDocument(user, {
+        default_tenant_id: null,
+        tenant_ids: []
+      });
+    }
+    const refreshedProfile = await loadProfile(user.uid);
+    let ensuredProfile = nextProfile;
+    let tenantResult = {
+      tenant: null,
+      tenantId: refreshedProfile?.default_tenant_id || null,
+      createdTenant: false
+    };
+    if (!shouldSkipTenantBootstrap) {
+      tenantResult = await ensureDefaultTenant(user, refreshedProfile);
+      ensuredProfile = tenantResult.profile || refreshedProfile;
+    } else {
+      ensuredProfile = refreshedProfile;
+    }
     setProfile(ensuredProfile);
     setCurrentUser(user);
     return {

@@ -22,6 +22,9 @@ Aplicacao Next.js com arquitetura multi-tenant e persistencia local (`localStora
 - Lista de Pesquisas: `/researches`
 - Formulario de Pesquisa: `/researches/new`
 - Edicao de Pesquisa: `/researches/[id]/edit`
+- Auth mobile pesquisador: `/mobile`
+- Dashboard mobile pesquisador: `/dash-mobile`
+- Perfil mobile pesquisador: `/profile-mobile`
 - Banco de dados (import/export por colecao): `/database`
 - Mapa legado React (fluxo anterior): `/map`
 
@@ -37,6 +40,25 @@ Build de producao:
 ```bash
 npm run build
 npm start
+```
+
+## App Mobile PWA (`/mobile`)
+
+Existe um app mobile separado em `mobile/`, focado no fluxo do pesquisador:
+
+- cadastro/login do pesquisador
+- perfil (`nome`, `rg`, `cpf`, endereco residencial e endereco de trabalho) com geolocalizacao (`lat/lon`) de residencia e trabalho
+- selecao de tenants de interesse por nome (armazenando IDs para matching/filtros)
+- pesquisas em aberto e inscricao
+- offline-first com cache local em PouchDB
+- sincronizacao com Firebase quando online
+
+Para rodar:
+
+```bash
+cd mobile
+npm install
+npm run dev
 ```
 
 ## Estilos (Tailwind)
@@ -188,6 +210,7 @@ No cadastro de Pesquisas (`/researches/new` e `/researches/[id]/edit`):
 - dashboard exibe apenas listagem simples de pesquisas
 - criacao/edicao de pesquisa foi movida para formulario dedicado
 - selecao de concorrentes respeita os concorrentes definidos no cluster
+- na tela de tarefas (`/researches/[id]/tasks`) existe o botao `Publicar agenda mobile` para enviar os eventos do mes para a colecao Firestore `research_events` (MVP)
 
 No dashboard (`/dashboard`), secao de servicos de pesquisa:
 

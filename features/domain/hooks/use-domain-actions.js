@@ -9,6 +9,7 @@ import {
   createRetailBannerModel,
   createStoreModel,
   createTenantModel,
+  createUserGroupModel,
   STORE_KINDS
 } from "../models";
 import {
@@ -17,6 +18,7 @@ import {
   DOMAIN_DELETE_NETWORK,
   DOMAIN_DELETE_PRODUCT,
   DOMAIN_DELETE_PRICE_RESEARCH,
+  DOMAIN_DELETE_USER_GROUP,
   DOMAIN_DELETE_STORE,
   DOMAIN_DELETE_TENANT,
   DOMAIN_SET_ACTIVE_TENANT,
@@ -25,6 +27,7 @@ import {
   DOMAIN_UPSERT_NETWORK,
   DOMAIN_UPSERT_PRODUCT,
   DOMAIN_UPSERT_PRICE_RESEARCH,
+  DOMAIN_UPSERT_USER_GROUP,
   DOMAIN_UPSERT_EVENT,
   DOMAIN_UPSERT_RESEARCH_SCHEDULE,
   DOMAIN_UPSERT_RESEARCH_TASK,
@@ -32,6 +35,7 @@ import {
   DOMAIN_UPSERT_TENANT
 } from "../state/action-types";
 import { syncResearchServiceSchedulesForCurrentMonth } from "../services/research-scheduler";
+import { publishResearchEventsForMonth } from "../services/research-events-publisher";
 import { useDomainState } from "../state/domain-state";
 import {
   selectClusterById,
@@ -47,6 +51,7 @@ import {
   selectResearchTasksByService,
   selectResearchTasksByTenant,
   selectStoresByTenant,
+  selectUserGroupsByTenant,
   selectBannersByTenant,
   selectStoreById
 } from "../state/selectors";
@@ -577,6 +582,84 @@ export function useDomainActions() {
     [dispatch]
   );
 
+  const saveUserGroup = useCallback(
+    (values) => {
+      const group = createUserGroupModel(values);
+      ensureTenantExists(state, group.tenant_id);
+      dispatch({ type: DOMAIN_UPSERT_USER_GROUP, payload: group });
+      return group;
+    },
+    [dispatch, state]
+  );
+
+  const removeUserGroup = useCallback(
+    (groupId) => {
+      dispatch({ type: DOMAIN_DELETE_USER_GROUP, payload: groupId });
+    },
+    [dispatch]
+  );
+
+  const publishResearchEventsForServiceMonth = useCallback(
+    async (researchId, referenceDateInput = null, actorInput = null, options = {}) => {
+      const serviceId = String(researchId || "");
+      if (!serviceId) {
+        throw new Error("Informe o ID do servico de pesquisa.");
+      }
+
+      const research = selectPriceResearchById(state, serviceId);
+      if (!research) {
+        throw new Error("Servico de pesquisa nao encontrado.");
+      }
+
+      ensureTenantExists(state, research.tenant_id);
+      const cluster = selectClusterById(state, research.cluster_id);
+      if (!cluster) {
+        throw new Error("Cluster do servico nao encontrado.");
+      }
+
+      const referenceDate =
+        referenceDateInput instanceof Date
+          ? referenceDateInput
+          : referenceDateInput
+            ? new Date(referenceDateInput)
+            : new Date();
+      const effectiveReferenceDate = Number.isNaN(referenceDate.getTime()) ? new Date() : referenceDate;
+      const year = effectiveReferenceDate.getFullYear();
+      const month = effectiveReferenceDate.getMonth() + 1;
+
+      const schedules = selectResearchSchedulesByService(state, serviceId).filter((item) =>
+        isDateInYearMonth(item?.date, year, month)
+      );
+      const scheduleIds = new Set(schedules.map((item) => String(item?.id || "")));
+      const tasks = selectResearchTasksByService(state, serviceId).filter((item) =>
+        scheduleIds.has(String(item?.research_schedule_id || ""))
+      );
+
+      if (schedules.length === 0) {
+        return {
+          year,
+          month,
+          total: 0,
+          published: 0,
+          failed: 0,
+          errors: []
+        };
+      }
+
+      return publishResearchEventsForMonth({
+        research,
+        cluster,
+        schedules,
+        tasks,
+        stores: selectStoresByTenant(state, research.tenant_id),
+        referenceDate: effectiveReferenceDate,
+        actor: actorInput,
+        maxSubscriptions: Number(options?.maxSubscriptions || 20)
+      });
+    },
+    [state]
+  );
+
   const exportTenantSnapshot = useCallback(
     (tenantIdInput) => {
       const tenantId = tenantIdInput || state.meta?.activeTenantId;
@@ -693,6 +776,21 @@ export function useDomainActions() {
     [state]
   );
 
+  const exportUserGroupsDataset = useCallback(
+    (tenantIdInput) => {
+      const tenantId = tenantIdInput || state.meta?.activeTenantId;
+      ensureTenantExists(state, tenantId);
+      return {
+        schema_version: SNAPSHOT_VERSION,
+        dataset: "user_groups",
+        tenant_id: tenantId,
+        exported_at: new Date().toISOString(),
+        items: selectUserGroupsByTenant(state, tenantId)
+      };
+    },
+    [state]
+  );
+
   const saveTenantsBatch = useCallback(
     (payload) => {
       const items = toBatchItems(payload);
@@ -765,6 +863,18 @@ export function useDomainActions() {
       });
     },
     [saveProduct, state]
+  );
+
+  const saveUserGroupsBatch = useCallback(
+    (tenantIdInput, payload) => {
+      const tenantId = tenantIdInput || state.meta?.activeTenantId;
+      ensureTenantExists(state, tenantId);
+      const items = toBatchItems(payload);
+      return runBatch(items, (item) => {
+        saveUserGroup({ ...item, tenant_id: tenantId });
+      });
+    },
+    [saveUserGroup, state]
   );
 
   const importTenantSnapshot = useCallback(
@@ -972,8 +1082,11 @@ export function useDomainActions() {
     savePriceResearch,
     removePriceResearch,
     runResearchSchedulerForServiceMonth,
+    publishResearchEventsForServiceMonth,
     saveProduct,
     removeProduct,
+    saveUserGroup,
+    removeUserGroup,
     exportTenantSnapshot,
     importTenantSnapshot,
     exportTenantsDataset,
@@ -982,11 +1095,13 @@ export function useDomainActions() {
     exportStoresDataset,
     exportPriceResearchesDataset,
     exportProductsDataset,
+    exportUserGroupsDataset,
     saveTenantsBatch,
     saveNetworksBatch,
     saveRetailBannersBatch,
     saveStoresBatch,
     savePriceResearchesBatch,
-    saveProductsBatch
+    saveProductsBatch,
+    saveUserGroupsBatch
   };
 }

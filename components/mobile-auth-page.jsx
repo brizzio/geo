@@ -3,8 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useFirebaseAuth } from "../features/auth/state/firebase-auth-context";
-import { useDomainActions } from "../features/domain/hooks/use-domain-actions";
-import { TENANT_TYPES } from "../features/domain/models";
 
 const MODES = {
   LOGIN: "login",
@@ -13,29 +11,35 @@ const MODES = {
 
 function mapAuthError(error) {
   const code = error?.code || "";
-  switch (code) {
-    case "auth/email-already-in-use":
-      return "Este e-mail ja esta em uso.";
-    case "auth/invalid-email":
-      return "E-mail invalido.";
-    case "auth/weak-password":
-      return "Senha fraca. Use ao menos 6 caracteres.";
-    case "auth/invalid-credential":
-    case "auth/wrong-password":
-    case "auth/user-not-found":
-      return "E-mail ou senha invalidos.";
-    default:
-      return error?.message || "Falha na autenticacao.";
+  if (code === "auth/email-already-in-use") {
+    return "Este e-mail ja esta em uso.";
   }
+  if (code === "auth/invalid-email") {
+    return "E-mail invalido.";
+  }
+  if (code === "auth/weak-password") {
+    return "Senha fraca. Use ao menos 6 caracteres.";
+  }
+  if (
+    code === "auth/invalid-credential" ||
+    code === "auth/wrong-password" ||
+    code === "auth/user-not-found"
+  ) {
+    return "E-mail ou senha invalidos.";
+  }
+  return error?.message || "Falha na autenticacao.";
 }
 
-export default function PublicAuthPage() {
+function isResearcherProfile(profile) {
+  return String(profile?.type || "").toLowerCase() === "researcher";
+}
+
+export default function MobileAuthPage() {
   const router = useRouter();
-  const { currentUser, loading, profile, signIn, signUp, isConfigured } = useFirebaseAuth();
-  const { saveTenant, setActiveTenant } = useDomainActions();
+  const { currentUser, profile, loading, signIn, signOut, signUp, isConfigured } = useFirebaseAuth();
   const [mode, setMode] = useState(MODES.LOGIN);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedback, setFeedback] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     displayName: "",
     email: "",
@@ -43,19 +47,21 @@ export default function PublicAuthPage() {
   });
 
   const pageTitle = useMemo(
-    () => (mode === MODES.LOGIN ? "Entrar na Plataforma" : "Criar uma Conta"),
+    () => (mode === MODES.LOGIN ? "Entrar como pesquisador" : "Registrar pesquisador"),
     [mode]
   );
 
-  function resolvePostAuthRoute(profileInput = null) {
-    const profileType = String(profileInput?.type || "").toLowerCase();
-    return profileType === "researcher" ? "/dash-mobile" : "/dashboard";
-  }
-
   useEffect(() => {
-    if (!loading && currentUser) {
-      router.replace(resolvePostAuthRoute(profile));
+    if (loading || !currentUser) {
+      return;
     }
+
+    if (isResearcherProfile(profile)) {
+      router.replace("/dash-mobile");
+      return;
+    }
+
+    router.replace("/dashboard");
   }, [loading, currentUser, profile, router]);
 
   function updateField(field, value) {
@@ -73,39 +79,38 @@ export default function PublicAuthPage() {
     setFeedback(null);
 
     try {
+      let result = null;
       if (mode === MODES.LOGIN) {
-        const result = await signIn({
+        result = await signIn({
           email: formData.email.trim(),
-          password: formData.password
+          password: formData.password,
+          skipTenantBootstrap: true
         });
-        if (result?.createdTenant && result?.tenant) {
-          saveTenant(result.tenant);
-        }
-        const tenantId = result?.tenantId || result?.profile?.default_tenant_id || null;
-        if (tenantId) {
-          setActiveTenant(tenantId);
-        }
-        router.replace(resolvePostAuthRoute(result?.profile));
       } else {
         const email = formData.email.trim();
         const displayName = formData.displayName.trim();
-        const result = await signUp({
+        result = await signUp({
           email,
           password: formData.password,
           displayName: displayName || null,
-          tenantData: {
-            name: displayName || email.split("@")[0] || "Minha conta",
-            person_type: TENANT_TYPES.INDIVIDUAL
-          }
+          userData: {
+            type: "researcher",
+            role: "researcher",
+            default_tenant_id: null,
+            tenant_ids: [],
+            preferred_tenants: []
+          },
+          skipTenantBootstrap: true
         });
-        if (result?.tenant) {
-          saveTenant(result.tenant);
-        }
-        if (result?.tenantId) {
-          setActiveTenant(result.tenantId);
-        }
-        router.replace(resolvePostAuthRoute(result?.profile));
       }
+
+      const resolvedProfile = result?.profile || profile;
+      if (!isResearcherProfile(resolvedProfile)) {
+        await signOut();
+        throw new Error("Este usuario nao possui perfil researcher.");
+      }
+
+      router.replace("/dash-mobile");
     } catch (error) {
       setFeedback({
         type: "error",
@@ -118,7 +123,7 @@ export default function PublicAuthPage() {
 
   if (loading) {
     return (
-      <main className={"grid min-h-screen place-items-center bg-[linear-gradient(140deg,#f8fafc_0%,#e2e8f0_42%,#dbeafe_100%)] p-6"}>
+      <main className={"grid min-h-screen place-items-center bg-[linear-gradient(160deg,#f8fafc_0%,#dbeafe_52%,#e2e8f0_100%)] p-6"}>
         <p className={"m-0 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-[0_12px_24px_rgba(15,23,42,0.08)]"}>
           Carregando sessao...
         </p>
@@ -127,15 +132,15 @@ export default function PublicAuthPage() {
   }
 
   return (
-    <main className={"grid min-h-screen place-items-center bg-[radial-gradient(circle_at_8%_18%,rgba(34,197,94,0.18),transparent_35%),radial-gradient(circle_at_88%_84%,rgba(59,130,246,0.2),transparent_38%),linear-gradient(145deg,#f8fafc_0%,#e2e8f0_45%,#f1f5f9_100%)] p-6"}>
+    <main className={"grid min-h-screen place-items-center bg-[radial-gradient(circle_at_10%_12%,rgba(34,197,94,0.18),transparent_35%),radial-gradient(circle_at_88%_90%,rgba(59,130,246,0.2),transparent_40%),linear-gradient(145deg,#f8fafc_0%,#e2e8f0_46%,#f1f5f9_100%)] p-6"}>
       <section className={"w-full max-w-[460px] rounded-2xl border border-slate-200 bg-white/[0.94] p-6 shadow-[0_20px_40px_rgba(15,23,42,0.12)]"}>
         <header className={"mb-5"}>
           <p className={"m-0 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500"}>
-            Geo Platform
+            Mobile Research
           </p>
           <h1 className={"mt-2 text-2xl text-slate-900"}>{pageTitle}</h1>
           <p className={"m-0 text-sm text-slate-600"}>
-            Pagina publica: faca login ou registre-se para acessar o dashboard.
+            Acesso dedicado do pesquisador para inscricao e perfil.
           </p>
         </header>
 
@@ -167,7 +172,7 @@ export default function PublicAuthPage() {
                 value={formData.displayName}
                 onChange={(event) => updateField("displayName", event.target.value)}
                 className={"rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-slate-500"}
-                placeholder="Seu nome"
+                placeholder="Nome do pesquisador"
               />
             </label>
           ) : null}
@@ -180,7 +185,7 @@ export default function PublicAuthPage() {
               value={formData.email}
               onChange={(event) => updateField("email", event.target.value)}
               className={"rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-slate-500"}
-              placeholder="voce@empresa.com"
+              placeholder="pesquisador@empresa.com"
             />
           </label>
 
@@ -208,7 +213,7 @@ export default function PublicAuthPage() {
             disabled={isSubmitting}
             className={"mt-1 cursor-pointer rounded-lg border border-slate-900 bg-slate-900 px-3 py-2.5 text-sm text-white disabled:cursor-not-allowed disabled:opacity-60"}
           >
-            {isSubmitting ? "Processando..." : mode === MODES.LOGIN ? "Entrar" : "Criar conta"}
+            {isSubmitting ? "Processando..." : mode === MODES.LOGIN ? "Entrar" : "Criar conta pesquisador"}
           </button>
         </form>
       </section>

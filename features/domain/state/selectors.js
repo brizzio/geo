@@ -115,6 +115,10 @@ export function selectProductsByTenant(state, tenantId) {
   return (state?.products || []).filter((item) => String(item.tenant_id) === String(tenantId));
 }
 
+export function selectUserGroupsByTenant(state, tenantId) {
+  return (state?.userGroups || []).filter((item) => String(item.tenant_id) === String(tenantId));
+}
+
 export function selectProductById(state, productId) {
   return (state?.products || []).find((item) => String(item.id) === String(productId)) || null;
 }

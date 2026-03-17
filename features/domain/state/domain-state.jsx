@@ -17,6 +17,7 @@ const FIRESTORE_COLLECTIONS = {
   clusters: "clusters",
   priceResearches: "price_researches",
   products: "products",
+  userGroups: "user_groups",
   researchSchedules: "research_schedules",
   researchTasks: "research_tasks",
   events: "events"

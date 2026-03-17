@@ -25,6 +25,9 @@ export const DOMAIN_DELETE_PRICE_RESEARCH = "domain/delete_price_research";
 export const DOMAIN_UPSERT_PRODUCT = "domain/upsert_product";
 export const DOMAIN_DELETE_PRODUCT = "domain/delete_product";
 
+export const DOMAIN_UPSERT_USER_GROUP = "domain/upsert_user_group";
+export const DOMAIN_DELETE_USER_GROUP = "domain/delete_user_group";
+
 export const DOMAIN_UPSERT_RESEARCH_SCHEDULE = "domain/upsert_research_schedule";
 export const DOMAIN_DELETE_RESEARCH_SCHEDULE = "domain/delete_research_schedule";
 

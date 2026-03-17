@@ -48,6 +48,18 @@ const NAV_ITEMS = [
     )
   },
   {
+    href: "/users",
+    label: "Times",
+    icon: (
+      <Icon>
+        <circle cx="8" cy="8" r="2.5" />
+        <circle cx="16" cy="8" r="2.5" />
+        <path d="M3.5 19a4.5 4.5 0 0 1 9 0" />
+        <path d="M11.5 19a4.5 4.5 0 0 1 9 0" />
+      </Icon>
+    )
+  },
+  {
     href: "/networks",
     label: "Redes",
     icon: (
@@ -142,7 +154,24 @@ function isHiddenPath(pathname) {
   if (!pathname) {
     return false;
   }
-  return pathname === "/" || pathname.startsWith("/map");
+  return (
+    pathname === "/" ||
+    pathname === "/mobile" ||
+    pathname.startsWith("/dash-mobile") ||
+    pathname.startsWith("/profile-mobile") ||
+    pathname.startsWith("/map")
+  );
+}
+
+function isMobilePath(pathname) {
+  if (!pathname) {
+    return false;
+  }
+  return (
+    pathname === "/mobile" ||
+    pathname.startsWith("/dash-mobile") ||
+    pathname.startsWith("/profile-mobile")
+  );
 }
 
 export default function AppShell({ children }) {
@@ -151,17 +180,45 @@ export default function AppShell({ children }) {
   const { currentUser, loading, profile, session, signOut } = useFirebaseAuth();
   const { state } = useDomainState();
   const { setActiveTenant } = useDomainActions();
-  const isPublicRoute = pathname === "/";
+  const isPublicRoute = pathname === "/" || pathname === "/mobile";
+  const isResearcher = String(profile?.type || "").toLowerCase() === "researcher";
+  const inMobilePath = isMobilePath(pathname);
 
   useEffect(() => {
-    if (loading || isPublicRoute) {
+    if (loading) {
+      return;
+    }
+
+    if (!currentUser && !isPublicRoute) {
+      router.replace(inMobilePath ? "/mobile" : "/");
       return;
     }
 
     if (!currentUser) {
-      router.replace("/");
+      return;
     }
-  }, [loading, currentUser, isPublicRoute, router]);
+
+    if (isResearcher && !inMobilePath) {
+      router.replace("/dash-mobile");
+      return;
+    }
+
+    if (!isResearcher && inMobilePath) {
+      router.replace("/dashboard");
+      return;
+    }
+
+    if (isResearcher && pathname === "/mobile") {
+      router.replace("/dash-mobile");
+      return;
+    }
+
+    if (!isResearcher && pathname === "/mobile") {
+      router.replace("/dashboard");
+      return;
+    }
+
+  }, [loading, currentUser, isPublicRoute, inMobilePath, isResearcher, pathname, router]);
 
   useEffect(() => {
     if (loading || !currentUser) {
@@ -218,7 +275,7 @@ export default function AppShell({ children }) {
   return (
     <div className={"flex min-h-screen bg-slate-100 max-[960px]:block"}>
       <aside className={"sticky top-0 z-20 flex h-screen w-[92px] flex-col gap-3 border-r border-white/10 bg-slate-900 px-[10px] py-[14px] text-slate-300 max-[960px]:h-auto max-[960px]:w-full max-[960px]:border-b max-[960px]:border-r-0 max-[960px]:p-2.5"} aria-label="Navegacao principal">
-        <p className={"m-0 text-center text-xs font-bold uppercase tracking-[0.08em] text-slate-50 max-[960px]:hidden"}>Geo</p>
+        <img src="images/nket-logo-white-framed.png" alt="Logo" className={"mx-auto h-6 w-auto"} />
         <nav className={"flex flex-col gap-2 max-[960px]:flex-row max-[960px]:overflow-x-auto"}>
           {NAV_ITEMS.map((item) => {
             const matchPrefixes = item.matchPrefixes || [item.href];

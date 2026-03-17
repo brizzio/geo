@@ -5,6 +5,7 @@ import {
   DOMAIN_DELETE_NETWORK,
   DOMAIN_DELETE_PRODUCT,
   DOMAIN_DELETE_PRICE_RESEARCH,
+  DOMAIN_DELETE_USER_GROUP,
   DOMAIN_DELETE_RESEARCH_SCHEDULE,
   DOMAIN_DELETE_RESEARCH_TASK,
   DOMAIN_DELETE_EVENT,
@@ -18,6 +19,7 @@ import {
   DOMAIN_UPSERT_NETWORK,
   DOMAIN_UPSERT_PRODUCT,
   DOMAIN_UPSERT_PRICE_RESEARCH,
+  DOMAIN_UPSERT_USER_GROUP,
   DOMAIN_UPSERT_RESEARCH_SCHEDULE,
   DOMAIN_UPSERT_RESEARCH_TASK,
   DOMAIN_UPSERT_EVENT,
@@ -313,6 +315,28 @@ function normalizeEvent(item = {}) {
     updated_by: normalizeText(item.updated_by) || null,
     created_at: normalizeText(item.created_at) || null,
     updated_at: normalizeText(item.updated_at) || null
+  };
+}
+
+function normalizeUserGroup(item = {}) {
+  return {
+    ...item,
+    id: normalizeText(item?.id) || null,
+    tenant_id: normalizeText(item?.tenant_id) || null,
+    team_name:
+      normalizeText(item?.team_name)?.toUpperCase() ||
+      normalizeText(item?.team_name_display)
+        ?.normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-zA-Z0-9]+/g, "_")
+        .replace(/^_+|_+$/g, "")
+        .toUpperCase() ||
+      null,
+    team_name_display: normalizeText(item?.team_name_display) || normalizeText(item?.team_name) || "",
+    permissions: Array.isArray(item?.permissions) ? item.permissions : [],
+    is_default: Boolean(item?.is_default),
+    created_at: normalizeText(item?.created_at) || null,
+    updated_at: normalizeText(item?.updated_at) || null
   };
 }
 
@@ -730,6 +754,9 @@ export function normalizeDomainState(rawState) {
   const events = toArray(rawState.events)
     .map(normalizeEvent)
     .filter((item) => Boolean(item.id));
+  const userGroups = toArray(rawState.userGroups)
+    .map(normalizeUserGroup)
+    .filter((item) => Boolean(item.id) && Boolean(item.tenant_id) && Boolean(item.team_name));
 
   priceResearches.forEach((research) => {
     const researchId = String(research.id);
@@ -765,6 +792,7 @@ export function normalizeDomainState(rawState) {
     clusters,
     priceResearches,
     products,
+    userGroups,
     researchSchedules,
     researchTasks,
     events
@@ -903,6 +931,7 @@ function cascadeDeleteTenant(state, tenantId) {
     clusters,
     priceResearches,
     products,
+    userGroups: state.userGroups.filter((item) => !tenantIds.has(String(item.tenant_id))),
     researchSchedules: byPlace.researchSchedules,
     researchTasks: byPlace.researchTasks,
     events
@@ -1223,6 +1252,16 @@ export function domainReducer(state, action) {
       return {
         ...state,
         products: removeById(state.products, action.payload)
+      };
+    case DOMAIN_UPSERT_USER_GROUP:
+      return {
+        ...state,
+        userGroups: upsertById(state.userGroups || [], normalizeUserGroup(action.payload))
+      };
+    case DOMAIN_DELETE_USER_GROUP:
+      return {
+        ...state,
+        userGroups: removeById(state.userGroups || [], action.payload)
       };
     case DOMAIN_UPSERT_RESEARCH_SCHEDULE:
       return {
