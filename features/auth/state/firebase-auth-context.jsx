@@ -16,7 +16,18 @@ import {
   signOut,
   updateProfile
 } from "firebase/auth";
-import { doc, getDoc, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  limit,
+  query,
+  serverTimestamp,
+  setDoc,
+  updateDoc,
+  where
+} from "firebase/firestore";
 import { auth, db, hasFirebaseConfig } from "../../../lib/firebase-client";
 import { createTenantModel, TENANT_TYPES } from "../../domain/models/tenant-model";
 
@@ -131,6 +142,150 @@ function buildDefaultTenantName({ tenantName, profile, user }) {
   return "Minha conta";
 }
 
+function normalizeText(value) {
+  if (value === null || value === undefined) {
+    return "";
+  }
+  return String(value).trim();
+}
+
+function normalizeEmail(value) {
+  return normalizeText(value).toLowerCase();
+}
+
+function uniqueStrings(values = []) {
+  const seen = new Set();
+  const result = [];
+  (Array.isArray(values) ? values : []).forEach((value) => {
+    const normalized = normalizeText(value);
+    if (!normalized || seen.has(normalized)) {
+      return;
+    }
+    seen.add(normalized);
+    result.push(normalized);
+  });
+  return result;
+}
+
+function normalizeStatus(value) {
+  return normalizeText(value).toLowerCase();
+}
+
+async function linkGuestInvitesByEmail(user) {
+  if (!db || !user?.uid || !user?.email) {
+    return {
+      matchedCount: 0,
+      profilePatch: {}
+    };
+  }
+
+  const normalizedEmail = normalizeEmail(user.email);
+  const rawEmail = normalizeText(user.email);
+  const candidateEmails = [...new Set([normalizedEmail, rawEmail].filter(Boolean))];
+  const candidateDocs = new Map();
+
+  for (const email of candidateEmails) {
+    const guestQuery = query(
+      collection(db, FIRESTORE_USERS_COLLECTION),
+      where("email", "==", email),
+      limit(80)
+    );
+    const snapshot = await getDocs(guestQuery);
+    snapshot.docs.forEach((item) => {
+      candidateDocs.set(String(item.id), item);
+    });
+  }
+
+  const inviteDocs = [...candidateDocs.values()].filter((item) => {
+    const data = item.data() || {};
+    if (String(item.id) === String(user.uid)) {
+      return false;
+    }
+    const status = normalizeStatus(data?.status);
+    const isGuest = status === "guest" || status === "invited";
+    const hasLinkedUser = Boolean(normalizeText(data?.user_id || data?.uid));
+    return isGuest && !hasLinkedUser;
+  });
+
+  if (inviteDocs.length === 0) {
+    return {
+      matchedCount: 0,
+      profilePatch: {}
+    };
+  }
+
+  const patch = {
+    status: "registered"
+  };
+  const tenantIds = [];
+  const teamIds = [];
+  let defaultTenantId = null;
+  let preferredDisplayName = null;
+
+  for (const item of inviteDocs) {
+    const data = item.data() || {};
+    const docRef = doc(db, FIRESTORE_USERS_COLLECTION, item.id);
+    const now = serverTimestamp();
+    await setDoc(
+      docRef,
+      {
+        uid: user.uid,
+        user_id: user.uid,
+        status: "registered",
+        email: normalizedEmail || rawEmail || null,
+        display_name: normalizeText(data?.display_name) || user.displayName || null,
+        first_login_at: data?.first_login_at || now,
+        last_login_at: now,
+        updated_at: now
+      },
+      { merge: true }
+    );
+
+    const docTenantIds = uniqueStrings([
+      ...(Array.isArray(data?.tenant_ids) ? data.tenant_ids : []),
+      data?.default_tenant_id
+    ]);
+    tenantIds.push(...docTenantIds);
+    teamIds.push(
+      ...uniqueStrings([
+        ...(Array.isArray(data?.team_ids) ? data.team_ids : []),
+        ...(Array.isArray(data?.group_ids) ? data.group_ids : []),
+        data?.team_id,
+        data?.group_id
+      ])
+    );
+    if (!defaultTenantId) {
+      defaultTenantId = normalizeText(data?.default_tenant_id) || null;
+    }
+    if (!preferredDisplayName) {
+      preferredDisplayName = normalizeText(data?.display_name) || null;
+    }
+  }
+
+  const uniqueTenantIds = uniqueStrings(tenantIds);
+  if (uniqueTenantIds.length > 0) {
+    patch.tenant_ids = uniqueTenantIds;
+  }
+  if (defaultTenantId) {
+    patch.default_tenant_id = defaultTenantId;
+  }
+  const uniqueTeamIds = uniqueStrings(teamIds);
+  if (uniqueTeamIds.length > 0) {
+    patch.team_ids = uniqueTeamIds;
+    patch.group_ids = uniqueTeamIds;
+    patch.team_id = uniqueTeamIds[0];
+    patch.group_id = uniqueTeamIds[0];
+  }
+  if (preferredDisplayName) {
+    patch.display_name = preferredDisplayName;
+  }
+
+  return {
+    matchedCount: inviteDocs.length,
+    profilePatch: patch
+  };
+}
+
 async function getAuthContext() {
   const fallbackUserAgent = typeof navigator !== "undefined" ? navigator.userAgent : null;
   const base = {
@@ -170,7 +325,8 @@ async function upsertUserDocument(user, extra = {}) {
 
   const basePayload = {
     uid: user.uid,
-    email: user.email || null,
+    user_id: user.uid,
+    email: normalizeEmail(user.email) || null,
     display_name: user.displayName || null,
     updated_at: now,
     last_login_at: now,
@@ -446,17 +602,27 @@ export function FirebaseAuthProvider({ children }) {
 
     const credential = await createUserWithEmailAndPassword(auth, email, password);
     const user = credential.user;
+    const resolvedDisplayName = displayName || user.displayName || null;
 
     if (displayName) {
       await updateProfile(user, { displayName });
     }
 
+    const inviteLink = await linkGuestInvitesByEmail({
+      ...user,
+      displayName: resolvedDisplayName
+    });
+
     await upsertUserDocument(
       {
         ...user,
-        displayName: displayName || user.displayName || null
+        displayName: resolvedDisplayName
       },
-      userData
+      {
+        ...inviteLink.profilePatch,
+        ...userData,
+        status: "registered"
+      }
     );
 
     const nextProfile = await loadProfile(user.uid);
@@ -498,7 +664,11 @@ export function FirebaseAuthProvider({ children }) {
 
     const credential = await signInWithEmailAndPassword(auth, email, password);
     const user = credential.user;
-    await upsertUserDocument(user);
+    const inviteLink = await linkGuestInvitesByEmail(user);
+    await upsertUserDocument(user, {
+      ...inviteLink.profilePatch,
+      status: "registered"
+    });
 
     const nextProfile = await loadProfile(user.uid);
     const isResearcherUser = String(nextProfile?.type || "").toLowerCase() === "researcher";

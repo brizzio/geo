@@ -60,6 +60,12 @@ function resolveUserStatus(user = {}) {
   if (disabled) {
     return USER_STATUS.SUSPENDED;
   }
+  if (rawStatus === USER_STATUS.REGISTERED) {
+    return USER_STATUS.REGISTERED;
+  }
+  if (rawStatus === USER_STATUS.INVITED || rawStatus === "GUEST") {
+    return USER_STATUS.INVITED;
+  }
   if (hasLastLogin) {
     return USER_STATUS.REGISTERED;
   }
@@ -380,6 +386,9 @@ export default function UsersTeamsApp() {
             <p className={"mb-0 mt-1 text-sm [opacity:0.85]"}>CONTA ativa: {activeTenant?.name || activeTenantId}</p>
           </div>
           <div className={"flex flex-wrap items-center gap-2"}>
+            <Link href="/users/new" className={"inline-flex items-center justify-center rounded-lg border border-slate-900 bg-slate-900 px-3 py-2.5 text-[13px] text-white no-underline"}>
+              Novo Usuario
+            </Link>
             <Link href="/dashboard" className={"inline-flex items-center justify-center rounded-lg border border-slate-900 bg-slate-900 px-3 py-2.5 text-[13px] text-white no-underline"}>
               Dashboard
             </Link>
@@ -442,6 +451,12 @@ export default function UsersTeamsApp() {
                 </div>
                 <div className={"flex items-center gap-2"}>
                   <span className={"text-xs text-slate-600"}>{group.users.length} usuario(s)</span>
+                  <Link
+                    href={`/users/groups/${encodeURIComponent(group.id)}/permissions`}
+                    className={"inline-flex h-[30px] items-center justify-center rounded-lg border border-slate-300 bg-white px-2.5 text-xs text-slate-900 no-underline"}
+                  >
+                    Configurar permissoes
+                  </Link>
                   {!group.is_default ? (
                     <button
                       type="button"
