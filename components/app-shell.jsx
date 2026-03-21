@@ -185,6 +185,18 @@ export default function AppShell({ children }) {
   const inMobilePath = isMobilePath(pathname);
 
   useEffect(() => {
+    if (typeof window === "undefined" || inMobilePath || !("serviceWorker" in navigator)) {
+      return;
+    }
+
+    navigator.serviceWorker.getRegistrations().then((registrations) => {
+      registrations.forEach((registration) => {
+        registration.unregister().catch(() => undefined);
+      });
+    });
+  }, [inMobilePath]);
+
+  useEffect(() => {
     if (loading) {
       return;
     }

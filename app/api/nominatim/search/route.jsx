@@ -40,7 +40,7 @@ async function queryNominatimWithRetry(url) {
         url,
         {
           headers: {
-            "User-Agent": "geo-next/1.0 (+nominatim-proxy)",
+            "User-Agent": "nket-next/1.0 (+nominatim-proxy)",
             Accept: "application/json",
             "Accept-Language": "pt-BR,pt;q=0.9,en;q=0.8"
           },

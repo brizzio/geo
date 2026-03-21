@@ -312,7 +312,7 @@ export default function App() {
     return (
       <main className="app-shell">
         <section className="panel">
-          <h1>Geo Mobile</h1>
+          <h1>NKET Mobile</h1>
           <p className="muted">Configure as variaveis VITE_FIREBASE_* no arquivo mobile/.env.</p>
         </section>
       </main>
@@ -323,7 +323,7 @@ export default function App() {
     return (
       <main className="app-shell">
         <section className="panel">
-          <h1>Geo Mobile</h1>
+          <h1>NKET Mobile</h1>
           <p className="muted">Carregando...</p>
         </section>
       </main>
@@ -334,7 +334,7 @@ export default function App() {
     return (
       <main className="app-shell">
         <section className="panel auth-panel">
-          <h1>Geo Mobile</h1>
+          <h1>NKET Mobile</h1>
           <p className="muted">Acesso do pesquisador</p>
 
           <div className="auth-switch">
@@ -384,7 +384,7 @@ export default function App() {
     <main className="app-shell">
       <header className="panel header-panel">
         <div>
-          <h1>Geo Mobile</h1>
+          <h1>NKET Mobile</h1>
           <p className="muted">Usuario: {currentUser.email}</p>
           <p className={`muted ${isOnline ? "ok" : "warn"}`}>{isOnline ? "Online" : "Offline"}</p>
         </div>

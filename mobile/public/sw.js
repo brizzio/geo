@@ -1,4 +1,4 @@
-﻿const CACHE_NAME = "geo-mobile-v1";
+const CACHE_NAME = "nket-mobile-v1";
 const ASSETS = ["/", "/index.html", "/manifest.webmanifest"];
 
 self.addEventListener("install", (event) => {

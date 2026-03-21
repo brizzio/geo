@@ -41,6 +41,9 @@ const EMPTY_PROFILE = {
   work_geo_lat: null,
   work_geo_lon: null,
   work_geo_display_name: "",
+  present_lat: null,
+  present_lon: null,
+  present_display_name: "",
   distance_reference: DISTANCE_REFERENCE_WORK
 };
 
@@ -84,6 +87,9 @@ function normalizeResearcherProfileFromFirestore(data = {}, authProfile = {}, cu
     work_geo_lat: normalizeCoordinate(data?.work_geo_lat),
     work_geo_lon: normalizeCoordinate(data?.work_geo_lon),
     work_geo_display_name: normalizeText(data?.work_geo_display_name || ""),
+    present_lat: normalizeCoordinate(data?.present_lat),
+    present_lon: normalizeCoordinate(data?.present_lon),
+    present_display_name: normalizeText(data?.present_display_name || ""),
     distance_reference: normalizeDistanceReference(
       data?.distance_reference || authProfile?.distance_reference
     )
@@ -294,6 +300,9 @@ export function MobileResearchProvider({ children }) {
         work_geo_lat: normalizeCoordinate(values?.work_geo_lat),
         work_geo_lon: normalizeCoordinate(values?.work_geo_lon),
         work_geo_display_name: normalizeText(values?.work_geo_display_name || ""),
+        present_lat: normalizeCoordinate(values?.present_lat),
+        present_lon: normalizeCoordinate(values?.present_lon),
+        present_display_name: normalizeText(values?.present_display_name || ""),
         distance_reference: normalizeDistanceReference(
           values?.distance_reference || researcherProfile?.distance_reference
         ),
@@ -312,6 +321,9 @@ export function MobileResearchProvider({ children }) {
           home_geo_lon: payload.home_geo_lon,
           work_geo_lat: payload.work_geo_lat,
           work_geo_lon: payload.work_geo_lon,
+          present_lat: payload.present_lat,
+          present_lon: payload.present_lon,
+          present_display_name: payload.present_display_name,
           distance_reference: payload.distance_reference,
           updated_at: serverTimestamp()
         },
@@ -331,6 +343,9 @@ export function MobileResearchProvider({ children }) {
         work_geo_lat: payload.work_geo_lat,
         work_geo_lon: payload.work_geo_lon,
         work_geo_display_name: payload.work_geo_display_name,
+        present_lat: payload.present_lat,
+        present_lon: payload.present_lon,
+        present_display_name: payload.present_display_name,
         distance_reference: payload.distance_reference
       });
       return true;

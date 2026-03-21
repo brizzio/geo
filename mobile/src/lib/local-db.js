@@ -1,6 +1,6 @@
 ﻿import PouchDB from "pouchdb-browser";
 
-const localDb = new PouchDB("geo-mobile-pwa");
+const localDb = new PouchDB("nket-mobile-pwa");
 
 function nowIso() {
   return new Date().toISOString();

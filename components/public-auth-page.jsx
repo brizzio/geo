@@ -131,7 +131,7 @@ export default function PublicAuthPage() {
       <section className={"w-full max-w-[460px] rounded-2xl border border-slate-200 bg-white/[0.94] p-6 shadow-[0_20px_40px_rgba(15,23,42,0.12)]"}>
         <header className={"mb-5"}>
           <p className={"m-0 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500"}>
-            Geo Platform
+            NKET Platform
           </p>
           <h1 className={"mt-2 text-2xl text-slate-900"}>{pageTitle}</h1>
           <p className={"m-0 text-sm text-slate-600"}>

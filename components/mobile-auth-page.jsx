@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useFirebaseAuth } from "../features/auth/state/firebase-auth-context";
+import MobileStandaloneGuard from "./mobile-standalone-guard";
 
 const MODES = {
   LOGIN: "login",
@@ -121,102 +122,106 @@ export default function MobileAuthPage() {
     }
   }
 
-  if (loading) {
-    return (
-      <main className={"grid min-h-screen place-items-center bg-[linear-gradient(160deg,#f8fafc_0%,#dbeafe_52%,#e2e8f0_100%)] p-6"}>
-        <p className={"m-0 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-[0_12px_24px_rgba(15,23,42,0.08)]"}>
-          Carregando sessao...
-        </p>
-      </main>
-    );
-  }
-
   return (
-    <main className={"grid min-h-screen place-items-center bg-[radial-gradient(circle_at_10%_12%,rgba(34,197,94,0.18),transparent_35%),radial-gradient(circle_at_88%_90%,rgba(59,130,246,0.2),transparent_40%),linear-gradient(145deg,#f8fafc_0%,#e2e8f0_46%,#f1f5f9_100%)] p-6"}>
-      <section className={"w-full max-w-[460px] rounded-2xl border border-slate-200 bg-white/[0.94] p-6 shadow-[0_20px_40px_rgba(15,23,42,0.12)]"}>
-        <header className={"mb-5"}>
-          <p className={"m-0 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500"}>
-            Mobile Research
+    <MobileStandaloneGuard
+      title={"Instale o NKET Mobile"}
+      subtitle={"O login do pesquisador so aparece dentro do app instalado."}
+      description={"Se o usuario abrir /mobile pelo navegador do celular, mostramos a instalacao antes de liberar o acesso."}
+    >
+      {loading ? (
+        <main className={"grid min-h-screen place-items-center bg-[linear-gradient(160deg,#f8fafc_0%,#dbeafe_52%,#e2e8f0_100%)] p-6"}>
+          <p className={"m-0 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-[0_12px_24px_rgba(15,23,42,0.08)]"}>
+            Carregando sessao...
           </p>
-          <h1 className={"mt-2 text-2xl text-slate-900"}>{pageTitle}</h1>
-          <p className={"m-0 text-sm text-slate-600"}>
-            Acesso dedicado do pesquisador para inscricao e perfil.
-          </p>
-        </header>
+        </main>
+      ) : (
+        <main className={"grid min-h-screen place-items-center bg-[radial-gradient(circle_at_10%_12%,rgba(34,197,94,0.18),transparent_35%),radial-gradient(circle_at_88%_90%,rgba(59,130,246,0.2),transparent_40%),linear-gradient(145deg,#f8fafc_0%,#e2e8f0_46%,#f1f5f9_100%)] p-6"}>
+          <section className={"w-full max-w-[460px] rounded-2xl border border-slate-200 bg-white/[0.94] p-6 shadow-[0_20px_40px_rgba(15,23,42,0.12)]"}>
+            <header className={"mb-5"}>
+              <p className={"m-0 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500"}>
+                Mobile Research
+              </p>
+              <h1 className={"mt-2 text-2xl text-slate-900"}>{pageTitle}</h1>
+              <p className={"m-0 text-sm text-slate-600"}>
+                Acesso dedicado do pesquisador para inscricao e perfil.
+              </p>
+            </header>
 
-        <div className={"mb-4 flex gap-2"}>
-          <button
-            type="button"
-            onClick={() => setMode(MODES.LOGIN)}
-            className={`${"flex-1 cursor-pointer rounded-lg border px-3 py-2 text-sm"} ${mode === MODES.LOGIN ? "border-slate-900 bg-slate-900 text-white" : "border-slate-300 bg-white text-slate-800"}`}
-          >
-            Login
-          </button>
-          <button
-            type="button"
-            onClick={() => setMode(MODES.REGISTER)}
-            className={`${"flex-1 cursor-pointer rounded-lg border px-3 py-2 text-sm"} ${mode === MODES.REGISTER ? "border-slate-900 bg-slate-900 text-white" : "border-slate-300 bg-white text-slate-800"}`}
-          >
-            Register
-          </button>
-        </div>
+            <div className={"mb-4 flex gap-2"}>
+              <button
+                type="button"
+                onClick={() => setMode(MODES.LOGIN)}
+                className={`${"flex-1 cursor-pointer rounded-lg border px-3 py-2 text-sm"} ${mode === MODES.LOGIN ? "border-slate-900 bg-slate-900 text-white" : "border-slate-300 bg-white text-slate-800"}`}
+              >
+                Login
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode(MODES.REGISTER)}
+                className={`${"flex-1 cursor-pointer rounded-lg border px-3 py-2 text-sm"} ${mode === MODES.REGISTER ? "border-slate-900 bg-slate-900 text-white" : "border-slate-300 bg-white text-slate-800"}`}
+              >
+                Register
+              </button>
+            </div>
 
-        <form onSubmit={handleSubmit} className={"grid gap-3"}>
-          {mode === MODES.REGISTER ? (
-            <label className={"grid gap-1"}>
-              <span className={"text-xs font-semibold uppercase tracking-[0.08em] text-slate-600"}>
-                Nome
-              </span>
-              <input
-                type="text"
-                value={formData.displayName}
-                onChange={(event) => updateField("displayName", event.target.value)}
-                className={"rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-slate-500"}
-                placeholder="Nome do pesquisador"
-              />
-            </label>
-          ) : null}
+            <form onSubmit={handleSubmit} className={"grid gap-3"}>
+              {mode === MODES.REGISTER ? (
+                <label className={"grid gap-1"}>
+                  <span className={"text-xs font-semibold uppercase tracking-[0.08em] text-slate-600"}>
+                    Nome
+                  </span>
+                  <input
+                    type="text"
+                    value={formData.displayName}
+                    onChange={(event) => updateField("displayName", event.target.value)}
+                    className={"rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-slate-500"}
+                    placeholder="Nome do pesquisador"
+                  />
+                </label>
+              ) : null}
 
-          <label className={"grid gap-1"}>
-            <span className={"text-xs font-semibold uppercase tracking-[0.08em] text-slate-600"}>E-mail</span>
-            <input
-              type="email"
-              required
-              value={formData.email}
-              onChange={(event) => updateField("email", event.target.value)}
-              className={"rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-slate-500"}
-              placeholder="pesquisador@empresa.com"
-            />
-          </label>
+              <label className={"grid gap-1"}>
+                <span className={"text-xs font-semibold uppercase tracking-[0.08em] text-slate-600"}>E-mail</span>
+                <input
+                  type="email"
+                  required
+                  value={formData.email}
+                  onChange={(event) => updateField("email", event.target.value)}
+                  className={"rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-slate-500"}
+                  placeholder="pesquisador@empresa.com"
+                />
+              </label>
 
-          <label className={"grid gap-1"}>
-            <span className={"text-xs font-semibold uppercase tracking-[0.08em] text-slate-600"}>Senha</span>
-            <input
-              type="password"
-              required
-              minLength={6}
-              value={formData.password}
-              onChange={(event) => updateField("password", event.target.value)}
-              className={"rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-slate-500"}
-              placeholder="Minimo 6 caracteres"
-            />
-          </label>
+              <label className={"grid gap-1"}>
+                <span className={"text-xs font-semibold uppercase tracking-[0.08em] text-slate-600"}>Senha</span>
+                <input
+                  type="password"
+                  required
+                  minLength={6}
+                  value={formData.password}
+                  onChange={(event) => updateField("password", event.target.value)}
+                  className={"rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-slate-500"}
+                  placeholder="Minimo 6 caracteres"
+                />
+              </label>
 
-          {feedback?.type === "error" ? (
-            <p className={"m-0 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700"}>
-              {feedback.text}
-            </p>
-          ) : null}
+              {feedback?.type === "error" ? (
+                <p className={"m-0 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700"}>
+                  {feedback.text}
+                </p>
+              ) : null}
 
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className={"mt-1 cursor-pointer rounded-lg border border-slate-900 bg-slate-900 px-3 py-2.5 text-sm text-white disabled:cursor-not-allowed disabled:opacity-60"}
-          >
-            {isSubmitting ? "Processando..." : mode === MODES.LOGIN ? "Entrar" : "Criar conta pesquisador"}
-          </button>
-        </form>
-      </section>
-    </main>
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className={"mt-1 cursor-pointer rounded-lg border border-slate-900 bg-slate-900 px-3 py-2.5 text-sm text-white disabled:cursor-not-allowed disabled:opacity-60"}
+              >
+                {isSubmitting ? "Processando..." : mode === MODES.LOGIN ? "Entrar" : "Criar conta pesquisador"}
+              </button>
+            </form>
+          </section>
+        </main>
+      )}
+    </MobileStandaloneGuard>
   );
 }

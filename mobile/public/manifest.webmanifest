@@ -1,6 +1,6 @@
 {
-  "name": "Geo Mobile",
-  "short_name": "GeoMobile",
+  "name": "NKET Mobile",
+  "short_name": "NKET",
   "description": "Pesquisa de preco offline-first para pesquisadores",
   "start_url": ".",
   "display": "standalone",

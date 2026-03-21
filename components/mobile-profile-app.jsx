@@ -4,7 +4,9 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useFirebaseAuth } from "../features/auth/state/firebase-auth-context";
+import DeviceLocationCard from "../features/mobile/components/device-location-card";
 import { useMobileResearchState } from "../features/mobile/state/mobile-research-state";
+import MobileStandaloneGuard from "./mobile-standalone-guard";
 
 const EMPTY_FORM = {
   name: "",
@@ -18,7 +20,10 @@ const EMPTY_FORM = {
   home_geo_display_name: "",
   work_geo_lat: "",
   work_geo_lon: "",
-  work_geo_display_name: ""
+  work_geo_display_name: "",
+  present_lat: "",
+  present_lon: "",
+  present_display_name: ""
 };
 
 function toCoordinateInput(value) {
@@ -86,7 +91,10 @@ export default function MobileProfileApp() {
       home_geo_display_name: String(researcherProfile?.home_geo_display_name || ""),
       work_geo_lat: toCoordinateInput(researcherProfile?.work_geo_lat),
       work_geo_lon: toCoordinateInput(researcherProfile?.work_geo_lon),
-      work_geo_display_name: String(researcherProfile?.work_geo_display_name || "")
+      work_geo_display_name: String(researcherProfile?.work_geo_display_name || ""),
+      present_lat: toCoordinateInput(researcherProfile?.present_lat),
+      present_lon: toCoordinateInput(researcherProfile?.present_lon),
+      present_display_name: String(researcherProfile?.present_display_name || "")
     });
   }, [researcherProfile]);
 
@@ -166,6 +174,21 @@ export default function MobileProfileApp() {
     }
   }
 
+  function handleDeviceLocation(location) {
+    const latitude = Number(location?.latitude);
+    const longitude = Number(location?.longitude);
+    const displayName = String(location?.displayName || "GPS atual do dispositivo");
+
+    setForm((previous) => ({
+      ...previous,
+      present_lat: Number.isFinite(latitude) ? String(latitude) : "",
+      present_lon: Number.isFinite(longitude) ? String(longitude) : "",
+      present_display_name: displayName
+    }));
+
+    setFeedback("Localizacao atual do dispositivo atualizada.");
+  }
+
   async function handleSubmit(event) {
     event.preventDefault();
     setSaving(true);
@@ -184,23 +207,21 @@ export default function MobileProfileApp() {
     }
   }
 
-  if (authLoading || !hydrationDone) {
-    return (
-      <main className={"grid min-h-screen place-items-center bg-[linear-gradient(160deg,#f8fafc_0%,#dbeafe_52%,#e2e8f0_100%)] p-6"}>
-        <p className={"m-0 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-[0_12px_24px_rgba(15,23,42,0.08)]"}>
-          Carregando perfil...
-        </p>
-      </main>
-    );
-  }
-
-  if (!currentUser || !isResearcher) {
-    return null;
-  }
-
   return (
-    <main className={"min-h-screen bg-[radial-gradient(circle_at_10%_12%,rgba(34,197,94,0.18),transparent_35%),radial-gradient(circle_at_88%_90%,rgba(59,130,246,0.2),transparent_40%),linear-gradient(145deg,#f8fafc_0%,#e2e8f0_46%,#f1f5f9_100%)] p-4 text-slate-900"}>
-      <div className={"mx-auto grid max-w-[740px] gap-3"}>
+    <MobileStandaloneGuard
+      title={"Abra o perfil pelo app instalado"}
+      subtitle={"O perfil mobile tambem exige modo standalone."}
+      description={"Instale o NKET Mobile para liberar edicao de perfil e geolocalizacao do pesquisador."}
+    >
+      {authLoading || !hydrationDone ? (
+        <main className={"grid min-h-screen place-items-center bg-[linear-gradient(160deg,#f8fafc_0%,#dbeafe_52%,#e2e8f0_100%)] p-6"}>
+          <p className={"m-0 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-[0_12px_24px_rgba(15,23,42,0.08)]"}>
+            Carregando perfil...
+          </p>
+        </main>
+      ) : !currentUser || !isResearcher ? null : (
+        <main className={"min-h-screen bg-[radial-gradient(circle_at_10%_12%,rgba(34,197,94,0.18),transparent_35%),radial-gradient(circle_at_88%_90%,rgba(59,130,246,0.2),transparent_40%),linear-gradient(145deg,#f8fafc_0%,#e2e8f0_46%,#f1f5f9_100%)] p-4 text-slate-900"}>
+          <div className={"mx-auto grid max-w-[740px] gap-3"}>
         <header className={"grid gap-2 rounded-xl border border-slate-200 bg-white/[0.92] p-4 shadow-[0_10px_24px_rgba(15,23,42,0.08)]"}>
           <h1 className={"m-0 text-[28px]"}>PROFILE MOBILE</h1>
           <p className={"m-0 text-xs text-slate-600"}>Atualize os dados cadastrais e geolocalizacao do pesquisador.</p>
@@ -386,6 +407,54 @@ export default function MobileProfileApp() {
           </section>
 
           <section className={"grid gap-2 rounded-lg border border-slate-200 p-2.5"}>
+            <strong className={"text-xs"}>Localizacao atual do dispositivo</strong>
+            <DeviceLocationCard
+              title={"GPS atual"}
+              description={"Captura a localizacao presente do pesquisador sem alterar os enderecos fixos de residencia e trabalho."}
+              buttonLabel={"Capturar localizacao atual"}
+              currentLat={form.present_lat}
+              currentLon={form.present_lon}
+              currentDisplayName={form.present_display_name}
+              onLocationCaptured={handleDeviceLocation}
+            />
+            <div className={"grid grid-cols-2 gap-2 max-[680px]:grid-cols-1"}>
+              <label className={"grid gap-1 text-xs"}>
+                <span>Latitude atual</span>
+                <input
+                  value={form.present_lat}
+                  onChange={(event) =>
+                    setForm((previous) => ({ ...previous, present_lat: event.target.value }))
+                  }
+                  className={"rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"}
+                  placeholder="-23.550520"
+                />
+              </label>
+              <label className={"grid gap-1 text-xs"}>
+                <span>Longitude atual</span>
+                <input
+                  value={form.present_lon}
+                  onChange={(event) =>
+                    setForm((previous) => ({ ...previous, present_lon: event.target.value }))
+                  }
+                  className={"rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"}
+                  placeholder="-46.633308"
+                />
+              </label>
+            </div>
+            <label className={"grid gap-1 text-xs"}>
+              <span>Origem da localizacao atual</span>
+              <input
+                value={form.present_display_name}
+                onChange={(event) =>
+                  setForm((previous) => ({ ...previous, present_display_name: event.target.value }))
+                }
+                className={"rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"}
+                placeholder="GPS atual do dispositivo"
+              />
+            </label>
+          </section>
+
+          <section className={"grid gap-2 rounded-lg border border-slate-200 p-2.5"}>
             <strong className={"text-xs"}>Tenants de interesse (opcional)</strong>
             <label className={"grid gap-1 text-xs"}>
               <span>Buscar tenant por nome</span>
@@ -433,7 +502,9 @@ export default function MobileProfileApp() {
             {saving ? "Salvando..." : "Salvar perfil"}
           </button>
         </form>
-      </div>
-    </main>
+          </div>
+        </main>
+      )}
+    </MobileStandaloneGuard>
   );
 }

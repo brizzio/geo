@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useMemo, useRef, useState } from "react";
 import ResearchServiceDashboardSection from "../features/dashboard/components/research-service-dashboard-section";
+import ResearcherStatsCard from "../features/researchers/components/researcher-stats-card";
+import { useResearcherStats } from "../features/researchers/hooks/use-researcher-stats";
 import { useDomainActions } from "../features/domain/hooks/use-domain-actions";
 import { STORE_KINDS } from "../features/domain/models";
 import { useDomainState } from "../features/domain/state/domain-state";
@@ -23,6 +25,7 @@ function DashboardRuntime() {
   } = useDomainActions();
   const fileInputRef = useRef(null);
   const [backupMessage, setBackupMessage] = useState(null);
+  const researcherStats = useResearcherStats();
 
   const activeTenantId = useMemo(() => selectActiveTenantId(state), [state]);
   const activeTenant = useMemo(() => selectActiveTenant(state), [state]);
@@ -177,6 +180,13 @@ function DashboardRuntime() {
             ))}
           </section>
         ) : null}
+
+        <ResearcherStatsCard
+          total={researcherStats.total}
+          active={researcherStats.active}
+          loading={researcherStats.loading}
+          error={researcherStats.error}
+        />
 
         <ResearchServiceDashboardSection
           tenantId={activeTenantId}
