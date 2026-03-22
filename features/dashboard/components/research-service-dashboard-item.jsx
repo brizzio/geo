@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { RESEARCH_SERVICE_WEEKDAYS } from "../../domain/models/price-research-model";
+import OpenResearchEventsTable from "./open-research-events-table";
+import CompletedResearchTasksTable from "../../research-tasks/components/completed-research-tasks-table";
 
 const WEEKDAY_NAME_BY_ID = Object.fromEntries(
   RESEARCH_SERVICE_WEEKDAYS.map((item) => [String(item.id), item.name])
@@ -45,7 +47,12 @@ function countProducts(research) {
   return new Set(ids.filter(Boolean)).size;
 }
 
-export default function ResearchServiceDashboardItem({ research, clusterName }) {
+export default function ResearchServiceDashboardItem({
+  research,
+  clusterName,
+  openEvents = [],
+  completedTasks = []
+}) {
   const isSuspended = String(research?.status || "").toUpperCase() === "SUSPENDED";
 
   return (
@@ -71,6 +78,9 @@ export default function ResearchServiceDashboardItem({ research, clusterName }) 
       <small>
         Niveis: {(research?.level_product_lists || []).length} | Produtos: {countProducts(research)}
       </small>
+
+      <OpenResearchEventsTable events={openEvents} />
+      <CompletedResearchTasksTable tasks={completedTasks} />
 
       <div className={"flex flex-wrap gap-2"}>
         <Link

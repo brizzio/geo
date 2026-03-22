@@ -159,6 +159,8 @@ function isHiddenPath(pathname) {
     pathname === "/mobile" ||
     pathname.startsWith("/dash-mobile") ||
     pathname.startsWith("/profile-mobile") ||
+    pathname.startsWith("/history-mobile") ||
+    pathname.startsWith("/task-mobile") ||
     pathname.startsWith("/map")
   );
 }
@@ -170,7 +172,9 @@ function isMobilePath(pathname) {
   return (
     pathname === "/mobile" ||
     pathname.startsWith("/dash-mobile") ||
-    pathname.startsWith("/profile-mobile")
+    pathname.startsWith("/profile-mobile") ||
+    pathname.startsWith("/history-mobile") ||
+    pathname.startsWith("/task-mobile")
   );
 }
 

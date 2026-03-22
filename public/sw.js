@@ -1,6 +1,6 @@
-const CACHE_NAME = "nket-next-mobile-v2";
+const CACHE_NAME = "nket-next-mobile-v4";
 const APP_SHELL = ["/mobile", "/manifest.webmanifest", "/icons/icon-192.png", "/icons/icon-512.png"];
-const MOBILE_ROUTES = new Set(["/mobile", "/dash-mobile", "/profile-mobile"]);
+const MOBILE_ROUTES = new Set(["/mobile", "/dash-mobile", "/profile-mobile", "/history-mobile", "/task-mobile"]);
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -36,7 +36,8 @@ self.addEventListener("fetch", (event) => {
   }
 
   if (request.mode === "navigate") {
-    if (!MOBILE_ROUTES.has(url.pathname)) {
+    const isTaskExecutionRoute = url.pathname.startsWith("/task-mobile/");
+    if (!MOBILE_ROUTES.has(url.pathname) && !isTaskExecutionRoute) {
       return;
     }
 

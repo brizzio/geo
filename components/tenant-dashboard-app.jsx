@@ -14,6 +14,7 @@ import {
   selectClustersByTenant,
   selectDashboardTotals,
   selectPriceResearchesByTenant,
+  selectResearchTasksByTenant,
   selectStoresByKind
 } from "../features/domain/state/selectors";
 
@@ -47,6 +48,10 @@ function DashboardRuntime() {
   );
   const priceResearches = useMemo(
     () => (activeTenantId ? selectPriceResearchesByTenant(state, activeTenantId) : []),
+    [state, activeTenantId]
+  );
+  const researchTasks = useMemo(
+    () => (activeTenantId ? selectResearchTasksByTenant(state, activeTenantId) : []),
     [state, activeTenantId]
   );
   const statCards = useMemo(
@@ -192,6 +197,7 @@ function DashboardRuntime() {
           tenantId={activeTenantId}
           clusters={clusters}
           priceResearches={priceResearches}
+          researchTasks={researchTasks}
         />
       </div>
     </main>

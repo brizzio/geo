@@ -43,6 +43,24 @@ function formatDistanceKm(distanceKm) {
   return `${distanceKm.toFixed(1)} km`;
 }
 
+function formatDeadline(value) {
+  if (!value) {
+    return "-";
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return "-";
+  }
+
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(parsed);
+}
+
 export default function MobileDashboardApp() {
   const router = useRouter();
   const { currentUser, loading: authLoading, profile, signOut } = useFirebaseAuth();
@@ -174,7 +192,7 @@ export default function MobileDashboardApp() {
         setFeedback("Voce ja esta inscrito neste evento.");
         return;
       }
-      setFeedback("Inscricao realizada com sucesso.");
+      setFeedback("Inscricao realizada com sucesso. O prazo para concluir a tarefa e de 2 horas a partir do aceite.");
     } catch (subscribeError) {
       setFeedback(subscribeError?.message || "Falha ao realizar inscricao.");
     }
@@ -231,6 +249,9 @@ export default function MobileDashboardApp() {
             <Link href="/profile-mobile" className={"inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 no-underline"}>
               Meu perfil
             </Link>
+            <Link href="/history-mobile" className={"inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 no-underline"}>
+              Minhas pesquisas
+            </Link>
             <button
               type="button"
               onClick={() => setShowOnlyPreferredTenants((previous) => !previous)}
@@ -285,11 +306,12 @@ export default function MobileDashboardApp() {
               {visibleEvents.map((eventItem) => {
                 const subscription = subscriptionsByEvent[String(eventItem.id)] || null;
                 const isAlreadySubscribed = subscription?.status === "SUBSCRIBED";
+                const isDone = subscription?.status === "DONE";
                 const isFull =
                   Number(eventItem?.subscriptions_count || 0) >=
                   Number(eventItem?.max_subscriptions || 20);
                 const isActionLoading = String(subscribingEventId) === String(eventItem.id);
-                const isDisabled = isAlreadySubscribed || isFull || isActionLoading;
+                const isDisabled = isAlreadySubscribed || isDone || isFull || isActionLoading;
                 const isPreferredTenant = preferredTenantSet.has(String(eventItem?.tenant_id || ""));
 
                 return (
@@ -314,27 +336,51 @@ export default function MobileDashboardApp() {
                     <small>
                       Minha situacao:{" "}
                       <strong>
-                        {isAlreadySubscribed
+                        {isDone
+                          ? "CONCLUIDO"
+                          : isAlreadySubscribed
                           ? "INSCRITO"
                           : subscription?.status === "REJECTED"
                             ? "NAO APROVADO"
                             : "DISPONIVEL"}
                       </strong>
                     </small>
-                    <button
-                      type="button"
-                      disabled={isDisabled}
-                      onClick={() => handleSubscribe(eventItem.id)}
-                      className={"cursor-pointer rounded-lg border border-slate-900 bg-slate-900 px-3 py-2 text-xs text-white disabled:cursor-not-allowed disabled:opacity-60"}
-                    >
-                      {isAlreadySubscribed
-                        ? "Ja inscrito"
-                        : isActionLoading
+                    {isAlreadySubscribed || isDone ? (
+                      <>
+                        <small>
+                          Prazo da tarefa: <strong>{formatDeadline(subscription?.deadline_at)}</strong>
+                        </small>
+                        {isDone ? (
+                          <button
+                            type="button"
+                            disabled
+                            className={"cursor-not-allowed rounded-lg border border-slate-300 bg-slate-100 px-3 py-2 text-xs text-slate-500"}
+                          >
+                            Tarefa concluida
+                          </button>
+                        ) : (
+                          <Link
+                            href={`/task-mobile/${encodeURIComponent(eventItem.id)}`}
+                            className={"inline-flex items-center justify-center rounded-lg border border-slate-900 bg-slate-900 px-3 py-2 text-xs text-white no-underline"}
+                          >
+                            Executar tarefa
+                          </Link>
+                        )}
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={isDisabled}
+                        onClick={() => handleSubscribe(eventItem.id)}
+                        className={"cursor-pointer rounded-lg border border-slate-900 bg-slate-900 px-3 py-2 text-xs text-white disabled:cursor-not-allowed disabled:opacity-60"}
+                      >
+                        {isActionLoading
                           ? "Processando..."
                           : isFull
                             ? "Lista cheia"
                             : "Inscrever"}
-                    </button>
+                      </button>
+                    )}
                   </article>
                 );
               })}

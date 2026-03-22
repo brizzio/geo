@@ -15,6 +15,11 @@ import {
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useFirebaseAuth } from "../../auth/state/firebase-auth-context";
 import { db, hasFirebaseConfig } from "../../../lib/firebase-client";
+import {
+  buildResearchTaskCoverage,
+  normalizeDoneTaskRecord,
+  normalizeExpectedProducts
+} from "../../research-tasks/lib/research-task-completion";
 
 const MobileResearchStateContext = createContext(null);
 
@@ -22,11 +27,13 @@ const RESEARCHERS_COLLECTION = "researchers";
 const RESEARCH_EVENTS_COLLECTION = "research_events";
 const RESEARCH_SUBSCRIPTIONS_COLLECTION = "research_subscriptions";
 const RESEARCH_SUBSCRIBERS_SUBCOLLECTION = "subscribers";
+const RESEARCH_TASKS_DONE_COLLECTION = "research_tasks_done";
 const USERS_COLLECTION = "users";
 const ACCOUNTS_COLLECTION = "accounts";
 const STORES_COLLECTION = "stores";
 const DISTANCE_REFERENCE_WORK = "WORK";
 const DISTANCE_REFERENCE_HOME = "HOME";
+const TASK_ACCEPTANCE_WINDOW_MS = 2 * 60 * 60 * 1000;
 
 const EMPTY_PROFILE = {
   name: "",
@@ -71,6 +78,45 @@ function normalizeDistanceReference(value) {
     : DISTANCE_REFERENCE_WORK;
 }
 
+function normalizeDateTime(value) {
+  if (!value) {
+    return null;
+  }
+
+  if (typeof value?.toDate === "function") {
+    const converted = value.toDate();
+    return converted instanceof Date && !Number.isNaN(converted.getTime()) ? converted.toISOString() : null;
+  }
+
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value.toISOString();
+  }
+
+  if (typeof value === "number") {
+    const converted = new Date(value);
+    return Number.isNaN(converted.getTime()) ? null : converted.toISOString();
+  }
+
+  const raw = String(value || "").trim();
+  if (!raw) {
+    return null;
+  }
+
+  const converted = new Date(raw);
+  return Number.isNaN(converted.getTime()) ? null : converted.toISOString();
+}
+
+function addHours(dateInput, hours) {
+  const base = normalizeDateTime(dateInput);
+  if (!base) {
+    return null;
+  }
+
+  const next = new Date(base);
+  next.setTime(next.getTime() + Number(hours || 0) * 60 * 60 * 1000);
+  return Number.isNaN(next.getTime()) ? null : next.toISOString();
+}
+
 function normalizeResearcherProfileFromFirestore(data = {}, authProfile = {}, currentUser = null) {
   return {
     name: normalizeText(data?.name || authProfile?.display_name || currentUser?.displayName || ""),
@@ -110,9 +156,15 @@ function normalizeOpenEventFromFirestore(docSnap, storeGeoById = new Map()) {
   return {
     id: String(docSnap.id),
     tenant_id: normalizeText(data?.tenant_id || ""),
+    research_service_id: normalizeText(data?.research_service_id || ""),
+    research_schedule_id: normalizeText(data?.research_schedule_id || ""),
+    research_task_id: normalizeText(data?.research_task_id || ""),
     name: normalizeText(data?.name || data?.service_name || "Pesquisa"),
     date: normalizeText(data?.date || ""),
+    due_date: normalizeText(data?.due_date || ""),
+    cluster_id: normalizeText(data?.cluster_id || ""),
     cluster_name: normalizeText(data?.cluster_name || ""),
+    level_id: normalizeText(data?.level_id || ""),
     competitor_name: normalizeText(data?.competitor_name || ""),
     competition_level: normalizeText(data?.competition_level || ""),
     place_id: placeId,
@@ -131,9 +183,22 @@ function mapSubscriptionsByEvent(subscriptions = []) {
     if (!eventId) {
       return;
     }
+
+    const acceptedAt = normalizeDateTime(entry?.accepted_at || entry?.created_at);
+    const deadlineAt =
+      normalizeDateTime(entry?.deadline_at) ||
+      addHours(acceptedAt || entry?.created_at, TASK_ACCEPTANCE_WINDOW_MS / (60 * 60 * 1000));
+
     map[eventId] = {
       status: normalizeText(entry?.status || "SUBSCRIBED").toUpperCase(),
-      reason: normalizeText(entry?.reason || "")
+      reason: normalizeText(entry?.reason || ""),
+      accepted_at: acceptedAt,
+      deadline_at: deadlineAt,
+      completed_at: normalizeDateTime(entry?.completed_at),
+      research_task_done_id: normalizeText(entry?.research_task_done_id || ""),
+      research_task_id: normalizeText(entry?.research_task_id || ""),
+      research_service_id: normalizeText(entry?.research_service_id || ""),
+      research_schedule_id: normalizeText(entry?.research_schedule_id || "")
     };
   });
   return map;
@@ -419,6 +484,8 @@ export function MobileResearchProvider({ children }) {
         const eventRef = doc(db, RESEARCH_EVENTS_COLLECTION, eventId);
         const subscriberRef = doc(collection(eventRef, RESEARCH_SUBSCRIBERS_SUBCOLLECTION), uid);
         const flatSubscriptionRef = doc(db, RESEARCH_SUBSCRIPTIONS_COLLECTION, `${eventId}_${uid}`);
+        const acceptedAt = new Date().toISOString();
+        const deadlineAt = new Date(Date.now() + TASK_ACCEPTANCE_WINDOW_MS).toISOString();
         const result = await runTransaction(db, async (transaction) => {
           const eventSnapshot = await transaction.get(eventRef);
           if (!eventSnapshot.exists()) {
@@ -453,7 +520,13 @@ export function MobileResearchProvider({ children }) {
             event_id: eventId,
             status: "SUBSCRIBED",
             reason: "",
+            tenant_id: normalizeText(eventData?.tenant_id || ""),
+            research_service_id: normalizeText(eventData?.research_service_id || ""),
+            research_schedule_id: normalizeText(eventData?.research_schedule_id || ""),
+            research_task_id: normalizeText(eventData?.research_task_id || ""),
             researcher_name: normalizeText(researcherProfile?.name || currentUser.displayName || ""),
+            accepted_at: acceptedAt,
+            deadline_at: deadlineAt,
             created_at: serverTimestamp(),
             updated_at: serverTimestamp()
           };
@@ -472,7 +545,17 @@ export function MobileResearchProvider({ children }) {
           ...previous,
           [eventId]: {
             status: "SUBSCRIBED",
-            reason: ""
+            reason: "",
+            accepted_at: acceptedAt,
+            deadline_at: deadlineAt,
+            completed_at: null,
+            research_task_done_id: "",
+            research_task_id:
+              normalizeText(events.find((eventItem) => String(eventItem.id) === eventId)?.research_task_id || ""),
+            research_service_id:
+              normalizeText(events.find((eventItem) => String(eventItem.id) === eventId)?.research_service_id || ""),
+            research_schedule_id:
+              normalizeText(events.find((eventItem) => String(eventItem.id) === eventId)?.research_schedule_id || "")
           }
         }));
 
@@ -492,7 +575,159 @@ export function MobileResearchProvider({ children }) {
         setSubscribingEventId("");
       }
     },
-    [currentUser, isResearcher, researcherProfile?.name]
+    [currentUser, events, isResearcher, researcherProfile?.name]
+  );
+
+  const completeResearchTask = useCallback(
+    async (eventIdInput, taskPayload = {}) => {
+      if (!hasFirebaseConfig || !db) {
+        throw new Error("Firebase nao configurado.");
+      }
+      if (!currentUser?.uid) {
+        throw new Error("Usuario nao autenticado.");
+      }
+      if (!isResearcher) {
+        throw new Error("Apenas researcher pode concluir tarefa.");
+      }
+
+      const eventId = normalizeText(eventIdInput || "");
+      if (!eventId) {
+        throw new Error("Evento invalido.");
+      }
+
+      const uid = String(currentUser.uid);
+      const doneId =
+        normalizeText(taskPayload?.id || "") || `done_${String(eventId)}_${String(uid)}`;
+      const completedAt = new Date().toISOString();
+      const eventRef = doc(db, RESEARCH_EVENTS_COLLECTION, eventId);
+      const subscriberRef = doc(collection(eventRef, RESEARCH_SUBSCRIBERS_SUBCOLLECTION), uid);
+      const flatSubscriptionRef = doc(db, RESEARCH_SUBSCRIPTIONS_COLLECTION, `${eventId}_${uid}`);
+      const doneRef = doc(db, RESEARCH_TASKS_DONE_COLLECTION, doneId);
+      const currentSubscription = subscriptionsByEvent[String(eventId)] || null;
+
+      const payload = {
+        id: doneId,
+        event_id: eventId,
+        uid,
+        researcher_name: normalizeText(
+          taskPayload?.researcher_name || researcherProfile?.name || currentUser.displayName || currentUser.email || ""
+        ),
+        tenant_id: normalizeText(taskPayload?.tenant_id || ""),
+        research_service_id: normalizeText(taskPayload?.research_service_id || ""),
+        research_schedule_id: normalizeText(taskPayload?.research_schedule_id || ""),
+        research_task_id: normalizeText(taskPayload?.research_task_id || ""),
+        place_id: normalizeText(taskPayload?.place_id || ""),
+        accepted_at:
+          normalizeDateTime(taskPayload?.accepted_at) ||
+          currentSubscription?.accepted_at ||
+          null,
+        deadline_at:
+          normalizeDateTime(taskPayload?.deadline_at) ||
+          currentSubscription?.deadline_at ||
+          null,
+        started_at: normalizeDateTime(taskPayload?.started_at) || null,
+        completed_at: completedAt,
+        status: "DONE",
+        facade_photo: taskPayload?.facade_photo || null,
+        collection: {
+          items: Array.isArray(taskPayload?.items) ? taskPayload.items : []
+        },
+        meta: {
+          event_name: normalizeText(taskPayload?.event_name || ""),
+          competitor_name: normalizeText(taskPayload?.competitor_name || ""),
+          competition_level: normalizeText(taskPayload?.competition_level || ""),
+          address_display_name: normalizeText(taskPayload?.address_display_name || "")
+        },
+        created_at: serverTimestamp(),
+        updated_at: serverTimestamp()
+      };
+
+      await setDoc(doneRef, payload, { merge: true });
+      await setDoc(
+        subscriberRef,
+        {
+          uid,
+          event_id: eventId,
+          status: "DONE",
+          research_task_done_id: doneId,
+          completed_at: completedAt,
+          updated_at: serverTimestamp()
+        },
+        { merge: true }
+      );
+      await setDoc(
+        flatSubscriptionRef,
+        {
+          uid,
+          event_id: eventId,
+          status: "DONE",
+          research_task_done_id: doneId,
+          completed_at: completedAt,
+          updated_at: serverTimestamp()
+        },
+        { merge: true }
+      );
+
+      try {
+        const expectedProducts = normalizeExpectedProducts(
+          Array.isArray(taskPayload?.expected_items) ? taskPayload.expected_items : taskPayload?.items
+        );
+
+        if (expectedProducts.length > 0) {
+          const doneSnapshot = await getDocs(
+            query(
+              collection(db, RESEARCH_TASKS_DONE_COLLECTION),
+              where("event_id", "==", eventId),
+              limit(100)
+            )
+          );
+          const doneRecords = doneSnapshot.docs.map(normalizeDoneTaskRecord);
+          const completion = buildResearchTaskCoverage({
+            expectedProducts,
+            doneRecords,
+            eventItem: {
+              id: eventId,
+              research_task_id: taskPayload?.research_task_id || ""
+            }
+          });
+
+          if (completion.is_completed) {
+            await setDoc(
+              eventRef,
+              {
+                status: "DONE",
+                completed_at: serverTimestamp(),
+                updated_at: serverTimestamp(),
+                completion_source: "research_tasks_done"
+              },
+              { merge: true }
+            );
+
+            setEvents((previous) =>
+              previous.filter((eventItem) => String(eventItem.id || "") !== String(eventId))
+            );
+          }
+        }
+      } catch (completionError) {
+        console.error("Failed to sync research task completion", completionError);
+      }
+
+      setSubscriptionsByEvent((previous) => ({
+        ...previous,
+        [eventId]: {
+          ...(previous?.[eventId] || {}),
+          status: "DONE",
+          completed_at: completedAt,
+          research_task_done_id: doneId
+        }
+      }));
+
+      return {
+        id: doneId,
+        completed_at: completedAt
+      };
+    },
+    [currentUser, isResearcher, researcherProfile?.name, subscriptionsByEvent]
   );
 
   useEffect(() => {
@@ -529,6 +764,7 @@ export function MobileResearchProvider({ children }) {
       refresh,
       saveResearcherProfile,
       subscribeToEvent,
+      completeResearchTask,
       updateDistanceReference
     }),
     [
@@ -544,6 +780,7 @@ export function MobileResearchProvider({ children }) {
       refresh,
       saveResearcherProfile,
       subscribeToEvent,
+      completeResearchTask,
       updateDistanceReference
     ]
   );

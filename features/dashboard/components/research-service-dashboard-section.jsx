@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { RESEARCH_SERVICE_STATUSES } from "../../domain/models/price-research-model";
+import { useResearchTaskCompletion } from "../../research-tasks/hooks/use-research-task-completion";
 import SectionCard from "./section-card";
 import ResearchServiceDashboardItem from "./research-service-dashboard-item";
 
@@ -106,7 +107,8 @@ function matchDateFilter(research, dateFilter) {
 export default function ResearchServiceDashboardSection({
   tenantId,
   clusters,
-  priceResearches
+  priceResearches,
+  researchTasks
 }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
@@ -114,6 +116,16 @@ export default function ResearchServiceDashboardSection({
   const [dateFilter, setDateFilter] = useState(DATE_FILTERS.ALL);
   const [sortBy, setSortBy] = useState(SORT_OPTIONS.UPDATED_DESC);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const {
+    openEventsByResearchId,
+    completedTasksByResearchId,
+    loading: taskStatusLoading,
+    error: taskStatusError
+  } = useResearchTaskCompletion({
+    tenantId,
+    researches: priceResearches,
+    researchTasks
+  });
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -247,6 +259,14 @@ export default function ResearchServiceDashboardSection({
           Mostrando {visibleResearches.length} de {filteredResearches.length} servico(s).
         </p>
       ) : null}
+      {tenantId && taskStatusLoading ? (
+        <p className={"m-0 text-xs opacity-70"}>Atualizando tarefas abertas para pesquisadores...</p>
+      ) : null}
+      {tenantId && taskStatusError ? (
+        <p className={"m-0 rounded-lg border border-red-200 bg-red-50 p-2 text-xs text-red-800"}>
+          {taskStatusError}
+        </p>
+      ) : null}
 
       <div className={"grid gap-1.5"}>
         {tenantId && filteredResearches.length === 0 ? (
@@ -259,6 +279,8 @@ export default function ResearchServiceDashboardSection({
               key={research.id}
               research={research}
               clusterName={clusterNameById[String(research.cluster_id)] || "N/A"}
+              openEvents={openEventsByResearchId[String(research.id)] || []}
+              completedTasks={completedTasksByResearchId[String(research.id)] || []}
             />
           ))
         )}
